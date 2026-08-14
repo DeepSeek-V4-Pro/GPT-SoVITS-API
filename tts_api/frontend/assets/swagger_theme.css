@@ -1,0 +1,197 @@
+@import url("https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css");
+/* ============================================================
+   语音合成台 · Swagger UI 主题
+   配色与 frontend/index.html 保持一致：
+   青绿(#0d9488) × 天蓝(#0ea5e9) 渐变 / 白卡片 / 柔和阴影 / 16px 圆角
+   ============================================================ */
+
+:root{
+  --api-panel:#ffffff;
+  --api-panel-soft:#f4fafb;
+  --api-line:rgba(14,116,144,.16);
+  --api-text:#123f4d;
+  --api-dim:#5f7d88;
+  --api-accent:#0d9488;
+  --api-accent2:#0ea5e9;
+  --api-grad:linear-gradient(135deg,#2dd4bf 0%,#38bdf8 100%);
+  --api-grad-strong:linear-gradient(135deg,#0d9488 0%,#0ea5e9 100%);
+}
+
+body{
+  background:
+    radial-gradient(1100px 640px at 88% -12%, rgba(45,212,191,.26), transparent 60%),
+    radial-gradient(900px 520px at -8% 18%, rgba(56,189,248,.20), transparent 55%),
+    radial-gradient(760px 520px at 50% 112%, rgba(56,189,248,.14), transparent 62%),
+    linear-gradient(165deg,#f2fbfb 0%,#eaf6fa 55%,#f6fbfc 100%);
+  background-attachment:fixed;
+}
+
+.swagger-ui{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color:var(--api-text);
+}
+.swagger-ui a{color:var(--api-accent2)}
+::selection{background:rgba(13,148,136,.25)}
+
+/* ---------- 布局：隐藏默认绿色顶栏，宽度与前台一致 ---------- */
+.swagger-ui .topbar{display:none}
+.swagger-ui .wrapper{max-width:1100px;padding:24px 20px 80px}
+
+/* ---------- 信息区（页头卡片） ---------- */
+.swagger-ui .info{
+  margin:0 0 18px;
+  padding:26px 30px;
+  background:linear-gradient(180deg,var(--api-panel),var(--api-panel-soft));
+  border:1px solid var(--api-line);
+  border-radius:16px;
+  box-shadow:0 10px 32px rgba(18,63,77,.08);
+}
+.swagger-ui .info::before{
+  content:"";display:block;width:64px;height:5px;border-radius:999px;
+  background:var(--api-grad);margin-bottom:16px;
+}
+.swagger-ui .info .title{font-size:24px;font-weight:700;color:var(--api-text);line-height:1.4}
+.swagger-ui .info .title small{
+  display:inline-flex;align-items:center;vertical-align:middle;margin-left:10px;
+  background:var(--api-grad-strong);border-radius:999px;padding:3px 12px;
+}
+.swagger-ui .info .title small pre{margin:0;background:none;color:#fff;font-size:12px;font-weight:600}
+.swagger-ui .info .description{font-size:14px;line-height:1.75;color:var(--api-dim)}
+.swagger-ui .info .description h2{
+  font-size:17px;font-weight:700;color:var(--api-text);
+  margin:22px 0 8px;padding-left:10px;border-left:4px solid var(--api-accent);
+}
+.swagger-ui .info .description h3{font-size:15px;font-weight:600;color:var(--api-accent);margin:16px 0 6px}
+.swagger-ui .info .description code{
+  background:rgba(13,148,136,.08);color:var(--api-accent);
+  padding:2px 6px;border-radius:6px;font-size:13px;
+}
+.swagger-ui .info .description pre{
+  background:#123f4d;color:#d9f6f2;border-radius:10px;padding:12px 16px;font-size:13px;
+}
+.swagger-ui .info .description pre code{background:none;color:inherit;padding:0}
+
+/* ---------- Markdown 表格 / 引用 / 折叠块 ---------- */
+.swagger-ui .renderedMarkdown table{border-collapse:collapse}
+.swagger-ui .renderedMarkdown th,
+.swagger-ui .renderedMarkdown td{border:1px solid var(--api-line);padding:6px 12px}
+.swagger-ui .renderedMarkdown th{background:var(--api-panel-soft);color:var(--api-text)}
+.swagger-ui .renderedMarkdown summary{color:var(--api-accent);cursor:pointer;font-weight:600}
+.swagger-ui .renderedMarkdown blockquote{
+  border-left:3px solid var(--api-accent);color:var(--api-dim);
+  background:rgba(13,148,136,.05);border-radius:0 8px 8px 0;padding:6px 12px;
+}
+
+/* ---------- 分组标签 ---------- */
+.swagger-ui .opblock-tag{
+  font-size:17px;font-weight:600;color:var(--api-text);
+  border-bottom:1px solid var(--api-line);padding-bottom:8px;
+}
+.swagger-ui .opblock-tag small{color:var(--api-dim)}
+.swagger-ui .opblock-tag svg{fill:var(--api-accent)}
+.swagger-ui .nostyle span{color:var(--api-dim)}
+.swagger-ui .opblock-tag .expand-operation{color:var(--api-accent2)}
+
+/* ---------- 接口卡片 ---------- */
+.swagger-ui .opblock{
+  margin:0 0 14px;border:1px solid var(--api-line);border-radius:14px;
+  background:var(--api-panel);box-shadow:0 6px 20px rgba(18,63,77,.06);
+}
+.swagger-ui .opblock .opblock-summary{padding:10px 16px;border-radius:13px}
+.swagger-ui .opblock .opblock-summary-method{
+  font-size:12px;font-weight:700;min-width:74px;text-align:center;
+  border-radius:8px;color:#fff;text-shadow:none;padding:4px 0;
+}
+.swagger-ui .opblock .opblock-summary-path{font-size:14px;font-weight:600;color:var(--api-text)}
+.swagger-ui .opblock .opblock-summary-description{color:var(--api-dim)}
+.swagger-ui .opblock .opblock-summary svg.arrow{fill:var(--api-dim)}
+
+/* 方法徽标配色（天蓝=查询 / 青绿=提交 等） */
+.swagger-ui .opblock.opblock-get .opblock-summary-method{background:#0ea5e9}
+.swagger-ui .opblock.opblock-post .opblock-summary-method{background:#0d9488}
+.swagger-ui .opblock.opblock-put .opblock-summary-method{background:#f59e0b}
+.swagger-ui .opblock.opblock-patch .opblock-summary-method{background:#14b8a6}
+.swagger-ui .opblock.opblock-delete .opblock-summary-method{background:#ef4444}
+.swagger-ui .opblock.opblock-head .opblock-summary-method,
+.swagger-ui .opblock.opblock-options .opblock-summary-method{background:#5f7d88}
+
+.swagger-ui .opblock .opblock-section-header{
+  background:var(--api-panel-soft);border-radius:10px;padding:8px 16px;
+}
+.swagger-ui .opblock .opblock-body{padding:18px 20px}
+
+/* ---------- 参数与响应 ---------- */
+.swagger-ui .parameter__name{color:var(--api-text)}
+.swagger-ui .parameter__type{color:var(--api-dim)}
+.swagger-ui .response-col_status{color:var(--api-text)}
+.swagger-ui .model-box{background:var(--api-panel-soft);border-radius:12px}
+.swagger-ui .model-title{color:var(--api-accent);font-weight:600}
+.swagger-ui table.model td,
+.swagger-ui table.model th{border-color:var(--api-line)}
+.swagger-ui .prop-type{color:var(--api-accent2)}
+.swagger-ui section.models{
+  border:1px solid var(--api-line);border-radius:14px;background:var(--api-panel);
+}
+.swagger-ui section.models h4{color:var(--api-text)}
+.swagger-ui .model-toggle::after{background:var(--api-accent)}
+
+/* ---------- 按钮与表单 ---------- */
+.swagger-ui .btn{
+  border:1px solid var(--api-line);border-radius:10px;color:var(--api-accent);
+  font-weight:600;font-family:inherit;box-shadow:none;
+}
+.swagger-ui .btn:hover{box-shadow:0 4px 14px rgba(13,148,136,.18);border-color:var(--api-accent)}
+.swagger-ui .btn.authorize,
+.swagger-ui .btn.execute{background:var(--api-grad-strong);border:none;color:#fff}
+.swagger-ui .btn.cancel{background:#fff;color:var(--api-dim)}
+
+.swagger-ui input[type=text],
+.swagger-ui input[type=search],
+.swagger-ui textarea,
+.swagger-ui select{
+  background:#f1f8fa;border:1px solid var(--api-line);border-radius:10px;color:var(--api-text);
+}
+.swagger-ui input:focus,
+.swagger-ui textarea:focus,
+.swagger-ui select:focus{
+  border-color:var(--api-accent);background:#fff;
+  box-shadow:0 0 0 3px rgba(13,148,136,.14);outline:none;
+}
+.swagger-ui select option{color:var(--api-text)}
+
+/* ---------- 鉴权条与弹窗 ---------- */
+.swagger-ui .scheme-container{
+  margin:0 0 16px;padding:10px 16px;
+  background:rgba(255,255,255,.65);border:1px solid var(--api-line);
+  border-radius:14px;box-shadow:none;
+}
+.swagger-ui .scheme-container .schemes>label{color:var(--api-dim)}
+.swagger-ui .dialog-ux .modal-ux{border-radius:16px;background:var(--api-panel)}
+.swagger-ui .dialog-ux .modal-ux-header h3{color:var(--api-text)}
+.swagger-ui .dialog-ux .modal-ux-content{color:var(--api-text)}
+
+/* ---------- 滚动条 ---------- */
+.swagger-ui ::-webkit-scrollbar{width:10px;height:10px}
+.swagger-ui ::-webkit-scrollbar-thumb{background:rgba(14,116,144,.28);border-radius:6px}
+.swagger-ui ::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- 移动端 ---------- */
+@media(max-width:768px){
+  .swagger-ui .wrapper{padding:14px 12px 60px}
+  .swagger-ui .info{padding:18px 14px;border-radius:12px}
+  .swagger-ui .info .title{font-size:20px}
+  .swagger-ui .info .title small{margin-left:6px}
+  .swagger-ui .info .description{font-size:13px}
+  .swagger-ui .opblock .opblock-summary{flex-direction:column;align-items:flex-start;padding:12px 14px}
+  .swagger-ui .opblock .opblock-summary-method{margin-bottom:6px;font-size:11px;min-width:64px;padding:3px 0}
+  .swagger-ui .opblock .opblock-summary-path{word-break:break-all;font-size:13px}
+  .swagger-ui .opblock .opblock-body{padding:14px 12px}
+  .swagger-ui .opblock .opblock-section-header{padding:8px 10px}
+  .swagger-ui .opblock-description-wrapper p{font-size:13px}
+  .swagger-ui .parameter__name{font-size:13px}
+  .swagger-ui .btn{font-size:13px;padding:6px 12px}
+  .swagger-ui .renderedMarkdown table{display:block;overflow-x:auto}
+  .swagger-ui .model-container{overflow-x:auto}
+  .swagger-ui .responses-inner{padding:8px}
+  .swagger-ui .parameters-col_description input[type=text]{width:100%;max-width:none}
+}

@@ -1,0 +1,7 @@
+# GPT-SoVITS-API 额外依赖
+# 请先按 GPT-SoVITS 官方教程安装其 requirements.txt（torch 等基础依赖），再执行:
+#   pip install -r requirements.txt
+fastapi[standard]>=0.112
+pydantic>=2.0,<3
+soundfile>=0.12.2
+numpy<2.0

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>免责声明与注意事项 · GPT-SoVITS</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#eef7f8;
+  --panel:#ffffff;
+  --panel-soft:#f4fafb;
+  --line:rgba(14,116,144,.16);
+  --text:#123f4d;
+  --dim:#5f7d88;
+  --accent:#0d9488;
+  --accent2:#0ea5e9;
+  --grad:linear-gradient(135deg,#2dd4bf 0%,#38bdf8 100%);
+  --grad-strong:linear-gradient(135deg,#0d9488 0%,#0ea5e9 100%);
+  --ok:#10b981;
+  --err:#ef4444;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(1100px 640px at 88% -12%, rgba(45,212,191,.26), transparent 60%),
+    radial-gradient(900px 520px at -8% 18%, rgba(56,189,248,.20), transparent 55%),
+    linear-gradient(165deg,#f2fbfb 0%,#eaf6fa 55%,#f6fbfc 100%);
+  background-attachment:fixed;
+  color:var(--text);
+  min-height:100vh;
+  line-height:1.75;
+}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+header{
+  display:flex;align-items:center;gap:14px;
+  max-width:860px;margin:0 auto;padding:22px 20px 8px;
+}
+.logo{
+  width:52px;height:52px;border-radius:16px;flex:none;
+  background:var(--grad-strong);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:700;
+  box-shadow:0 8px 22px rgba(14,165,164,.30);
+}
+.title-wrap{flex:1;min-width:0}
+.title-wrap h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.title-wrap p{font-size:13px;color:var(--dim)}
+.back-link{
+  display:inline-flex;align-items:center;gap:8px;flex:none;
+  background:var(--grad-strong);color:#fff;
+  border-radius:999px;padding:9px 16px;font-size:14px;font-weight:600;
+  text-decoration:none;letter-spacing:.5px;
+  box-shadow:0 6px 18px rgba(13,148,136,.25);
+  transition:transform .15s, box-shadow .15s;
+}
+.back-link:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 10px 24px rgba(13,148,136,.35)}
+
+main{
+  max-width:860px;margin:0 auto;padding:14px 20px 30px;
+  display:flex;flex-direction:column;gap:16px;
+}
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel-soft));
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px 22px;box-shadow:0 10px 32px rgba(18,63,77,.08);
+}
+.card h2{
+  font-size:16px;margin-bottom:12px;color:#0e5a6b;
+  display:flex;align-items:center;gap:8px;
+}
+.card h2 .dot{
+  width:10px;height:10px;border-radius:50%;flex:none;
+  background:var(--grad);
+}
+.intro{
+  background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(14,165,233,.10));
+  border:1px solid rgba(13,148,136,.28);
+  font-size:13.5px;color:#0e5a6b;
+}
+.intro b{color:var(--accent)}
+.card ol,.card ul{margin:0;padding-left:22px;font-size:14px}
+.card li{margin-bottom:10px}
+.card li b{color:#0e5a6b}
+.card .sub{font-size:12.5px;color:var(--dim);margin-top:2px;line-height:1.7}
+.warn{
+  margin-top:14px;padding:10px 14px;border-radius:12px;font-size:13px;
+  background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.28);color:#9f3a3a;
+}
+.warn b{color:#dc2626}
+.foot{
+  text-align:center;font-size:12px;color:var(--dim);
+  padding:4px 0 2px;
+}
+footer{
+  max-width:860px;margin:0 auto;padding:6px 20px 26px;
+  font-size:12px;color:var(--dim);display:flex;gap:14px;flex-wrap:wrap;
+  justify-content:center;
+}
+footer a{color:var(--dim)}
+footer a:hover{color:var(--accent2)}
+@media(max-width:600px){
+  header{flex-wrap:wrap}
+  .card{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">免</div>
+  <div class="title-wrap">
+    <h1>免责声明与注意事项</h1>
+    <p>使用本语音合成服务前，请仔细阅读以下内容</p>
+  </div>
+  <a class="back-link" href="/">← 返回语音合成台</a>
+</header>
+
+<main>
+  <section class="card intro">
+    本页面面向<b>所有使用者</b>（含管理员、音色提供者、普通访客）。继续使用本服务，即代表你已阅读并同意以下
+    <b>免责声明</b>与<b>注意事项</b>。
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>一、免责声明</h2>
+    <ol>
+      <li><b>服务性质</b>：本服务为个人学习交流用途的轻量自托管工具，按「现状」提供，不承诺任何服务水平（无 SLA），
+        管理员有权在不另行通知的情况下暂停、调整或终止服务。
+        <div class="sub">服务可能因模型加载、排队、网络、硬件等原因延迟或失败，请勿用于对稳定性有硬性要求的场景。</div>
+      </li>
+      <li><b>合成内容责任</b>：用户对自己提交合成的文本、用途及传播后果负全部责任。禁止合成违法、侵权、诈骗、
+        色情、赌博、宣扬暴力或恐怖、冒充他人身份、诋毁他人等违规内容；违规请求将被拒绝，情节严重的将被限制访问。
+        <div class="sub">服务端会对常见敏感词与文本长度做拦截，但无法穷尽所有违规情形，请自觉遵守。</div>
+      </li>
+      <li><b>音色与授权</b>：使用他人声音、音色或角色形象进行合成，必须事先取得权利人授权；
+        使用本人声音合成的，请妥善处理个人隐私与同意问题。因音色授权、肖像权、名誉权等引发的纠纷由使用者自行承担。
+      </li>
+      <li><b>第三方模型 API</b>：AI 对话功能使用<b>用户自备</b>的 OpenAI 兼容接口与 API Key，
+        服务端仅作中转，不保存、不记录 Key。调用第三方服务产生的内容质量、费用、隐私与合规风险由用户自行承担。
+      </li>
+      <li><b>数据与隐私</b>：聊天记录默认仅保存在用户自己的浏览器（IndexedDB），导出/导入由用户自行管理；
+        服务端日志可能记录 IP、时间、请求文本摘要等必要信息，仅用于运维、排障与安全防护。
+      </li>
+      <li><b>输出准确性</b>：合成语音与 AI 回复可能存在错误、失真或不当内容，仅供娱乐与学习参考，
+        请勿用于医疗、法律、金融等需要人工确认的场合，也不得据此作出重要决策。
+      </li>
+      <li><b>安全使用</b>：请勿对本服务进行扫描、攻击、滥用（如绕过限流）、恶意占用资源或干扰他人使用；
+        管理员保留封禁违规 IP / 用户的权利，必要时将保留证据并依法处理。
+      </li>
+      <li><b>开源许可</b>：本项目基于 MIT 许可开源，基于 <a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank" rel="noopener">GPT-SoVITS</a>（MIT）构建；
+        部署、二次开发与使用过程中的一切风险由使用者自行承担。
+      </li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>二、注意事项</h2>
+    <ul>
+      <li><b>多人共用音色</b>：服务端同一时刻只加载一个音色，切换为异步排队。提交任务时可携带自己的模型路径，
+        任务会排队等待自己的音色加载；请勿在别人切换时反复点击「加载音色」，避免互相覆盖。
+      </li>
+      <li><b>排队与限流</b>：默认最大并发 2、排队上限 50、每 IP 每分钟 40 次、全局 100 次/分钟；
+        超出限制会返回 429 / 503，请稍后再试，不要高频轮询占用资源。
+      </li>
+      <li><b>临时文件</b>：合成音频在服务器保留 <b>1 小时</b>后自动清理，任务状态同样保留 1 小时；
+        重要音频请及时下载保存，服务端不提供长期存储。
+      </li>
+      <li><b>路径与参数</b>：参考音频、模型路径请使用 <code>/models</code> 返回的值；服务端会做路径穿越校验，
+        非法路径将被拒绝。文本建议 5~500 字符，语种请与参考音频及模型训练数据匹配，超范围可能音质下降。
+      </li>
+      <li><b>手机兼容</b>：手机浏览器建议使用 <code>wav</code> 格式；iPhone / iPad 会自动禁用 <code>ogg</code> 并切回 wav。
+      </li>
+      <li><b>反馈渠道</b>：使用中遇到问题，请通过合成台页脚「意见反馈」提交，或直接联系管理员；
+        反馈中请勿填写敏感信息（如完整 API Key）。
+      </li>
+    </ul>
+  </section>
+
+  <div class="warn"><b>特别提醒：</b>请勿将本服务用于任何违反法律法规或侵犯他人权益的用途。
+    因违规使用产生的一切后果由使用者自行承担，与管理员及项目作者无关。</div>
+
+  <p class="foot">最后更新：2026-08-15 · 本服务版本 1.2</p>
+</main>
+
+<footer>
+  <span>GPT-SoVITS 语音合成台</span>
+  <a href="/">返回合成台</a>
+  <a href="/chat">AI 语音对话</a>
+  <a href="/docs" target="_blank">API 文档</a>
+</footer>
+
+</body>
+</html>

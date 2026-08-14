@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# 运行时数据（首次启动自动创建）
+temp_audio/
+logs/
+feedback/
+
+# 音色与模型（自备，不入库）
+voices/*
+!voices/README.md
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db

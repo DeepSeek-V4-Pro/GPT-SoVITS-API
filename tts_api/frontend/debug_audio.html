@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手机音频诊断</title>
+<style>
+body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:16px;background:#f2f7f8;color:#123f4d;line-height:1.6}
+h1{font-size:18px;margin:4px 0}
+p.hint{font-size:12px;color:#5f7d88;margin:4px 0 12px;word-break:break-all}
+button{display:block;width:100%;margin:8px 0;padding:14px;font-size:15px;border:none;border-radius:10px;background:#0d9488;color:#fff;font-weight:600}
+button:active{opacity:.8}
+#log{background:#fff;border:1px solid #d5e6ea;border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap;word-break:break-all;min-height:140px;max-height:60vh;overflow:auto}
+audio{width:100%;margin:8px 0}
+</style>
+</head>
+<body>
+<h1>手机音频诊断页</h1>
+<p class="hint" id="ua">…</p>
+<button id="btnFetch">① 网络测试：下载音频字节</button>
+<button id="btnBlob">② 解码测试：用下载到的字节播放</button>
+<button id="btnDirect">③ 直链测试：&lt;audio&gt; 播放服务器音频</button>
+<button id="btnTone">④ 扬声器测试：播放提示音（哔——）</button>
+<div id="audioBox"></div>
+<div id="log">等待操作…</div>
+<script>
+"use strict";
+var logEl = document.getElementById("log");
+function log(msg){
+  logEl.textContent += "\n[" + new Date().toLocaleTimeString() + "] " + msg;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+var conn = "";
+try{
+  if (navigator.connection){
+    conn = " 网络: " + (navigator.connection.effectiveType || "未知")
+         + " downlink=" + navigator.connection.downlink
+         + " rtt=" + navigator.connection.rtt + "ms 省流=" + (navigator.connection.saveData ? "开" : "关");
+  }
+}catch(_){}
+document.getElementById("ua").textContent =
+  "UA: " + navigator.userAgent + "\n" + "platform: " + navigator.platform + conn;
+
+var fileName = null, fileExt = "wav", blobUrl = null;
+async function latest(){
+  if (fileName) return fileName;
+  var r = await fetch("/debug_latest_audio");
+  var j = await r.json();
+  fileName = j.name;
+  if (fileName){ fileExt = fileName.split(".").pop(); }
+  else { log("没有找到音频文件：请先到主页合成一条，再回到本页测试"); }
+  return fileName;
+}
+function attachAudio(a, label){
+  function report(ev){
+    log(label + " 事件: " + (ev ? ev.type : "?") + " readyState=" + a.readyState
+      + " 时长=" + (isFinite(a.duration) ? a.duration.toFixed(2) + "s" : "未知")
+      + " error=" + (a.error ? ("code=" + a.error.code + " " + a.error.message) : "无"));
+  }
+  a.addEventListener("loadedmetadata", report);
+  a.addEventListener("canplay", report);
+  a.addEventListener("playing", report);
+  a.addEventListener("stalled", report);
+  a.addEventListener("suspend", report);
+  a.addEventListener("waiting", report);
+  a.addEventListener("error", report);
+}
+
+document.getElementById("btnFetch").onclick = async function(){
+  var name = await latest(); if (!name) return;
+  log("开始 fetch /audio/" + name);
+  try{
+    var t0 = Date.now();
+    var resp = await fetch("/audio/" + name);
+    var buf = await resp.arrayBuffer();
+    log("fetch 完成: HTTP " + resp.status + ", 收到 " + buf.byteLength
+      + " 字节, 用时 " + (Date.now() - t0) + " ms, Content-Type=" + resp.headers.get("content-type"));
+  }catch(e){
+    log("fetch 失败: " + e.message + "（网络层没拿到完整响应）");
+  }
+};
+
+document.getElementById("btnBlob").onclick = async function(){
+  var name = await latest(); if (!name) return;
+  try{
+    if (!blobUrl){
+      var resp = await fetch("/audio/" + name);
+      var buf = await resp.arrayBuffer();
+      log("收到 " + buf.byteLength + " 字节, 创建 Blob 播放…");
+      var mime = fileExt === "ogg" ? "audio/ogg" : (fileExt === "aac" ? "audio/aac" : "audio/wav");
+      blobUrl = URL.createObjectURL(new Blob([buf], { type: mime }));
+    }
+    var box = document.getElementById("audioBox");
+    box.innerHTML = "";
+    var a = document.createElement("audio");
+    a.controls = true; a.playsinline = true; a.src = blobUrl;
+    attachAudio(a, "Blob");
+    box.appendChild(a);
+    try { await a.play(); } catch(e){ log("Blob play() 被拒: " + e.message); }
+  }catch(e){ log("Blob 测试失败: " + e.message); }
+};
+
+document.getElementById("btnDirect").onclick = async function(){
+  var name = await latest(); if (!name) return;
+  try{
+    var box = document.getElementById("audioBox");
+    box.innerHTML = "";
+    var a = document.createElement("audio");
+    a.controls = true; a.playsinline = true; a.src = "/audio/" + name;
+    attachAudio(a, "直链");
+    box.appendChild(a);
+    try { await a.play(); } catch(e){ log("直链 play() 被拒: " + e.message); }
+  }catch(e){ log("直链测试失败: " + e.message); }
+};
+
+document.getElementById("btnTone").onclick = function(){
+  try{
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var o = ctx.createOscillator();
+    o.frequency.value = 880;
+    o.connect(ctx.destination);
+    o.start();
+    setTimeout(function(){ o.stop(); }, 1200);
+    log("已播放 880Hz 提示音 1.2 秒 —— 你听到「哔——」了吗？");
+  }catch(e){ log("提示音失败: " + e.message); }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI 语音对话（测试版）· GPT-SoVITS</title>
+<style>
+:root{
+  color-scheme: light;
+  --panel:#fff;
+  --panel-soft:#f4fafb;
+  --line:rgba(14,116,144,.16);
+  --text:#123f4d;
+  --dim:#5f7d88;
+  --accent:#0d9488;
+  --accent2:#0ea5e9;
+  --grad-strong:linear-gradient(135deg,#0d9488 0%,#0ea5e9 100%);
+  --ok:#10b981;
+  --err:#ef4444;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(1100px 640px at 88% -12%, rgba(45,212,191,.26), transparent 60%),
+    radial-gradient(900px 520px at -8% 18%, rgba(56,189,248,.20), transparent 55%),
+    linear-gradient(165deg,#f2fbfb 0%,#eaf6fa 55%,#f6fbfc 100%);
+  background-attachment:fixed;
+  color:var(--text);
+  min-height:100vh;
+  line-height:1.6;
+}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- 头部 ---------- */
+header{
+  display:flex;align-items:center;gap:14px;
+  max-width:1000px;margin:0 auto;padding:22px 20px 8px;
+}
+.logo{
+  width:52px;height:52px;border-radius:16px;flex:none;
+  background:var(--grad-strong);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:700;
+  box-shadow:0 8px 22px rgba(14,165,164,.30);
+}
+.title-wrap{flex:1;min-width:0}
+.title-wrap h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.title-wrap p{font-size:13px;color:var(--dim)}
+.badge{
+  background:rgba(239,68,68,.10);color:#dc2626;border:1px solid rgba(239,68,68,.35);
+  border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;flex:none;
+}
+/* 与主页面「AI 语音对话」胶囊按钮同款风格 */
+.back-link{
+  display:inline-flex;align-items:center;gap:8px;flex:none;
+  background:var(--grad-strong);color:#fff;
+  border-radius:999px;padding:9px 16px;font-size:14px;font-weight:600;
+  text-decoration:none;letter-spacing:.5px;
+  box-shadow:0 6px 18px rgba(13,148,136,.25);
+  transition:transform .15s, box-shadow .15s;
+}
+.back-link:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 10px 24px rgba(13,148,136,.35)}
+
+/* ---------- 音色切换横幅（多人共用时的全局状态提示） ---------- */
+.switch-banner{
+  max-width:1000px;margin:6px auto 0;padding:10px 18px;
+  background:linear-gradient(135deg,rgba(13,148,136,.10),rgba(14,165,233,.12));
+  border:1px solid rgba(13,148,136,.32);border-radius:12px;
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;color:#0e5a6b;line-height:1.6;word-break:break-all;
+  box-shadow:0 4px 14px rgba(18,63,77,.06);
+}
+.switch-banner[hidden]{display:none}
+.switch-banner .spin{width:13px;height:13px;flex:none;border-radius:50%;
+  border:2px solid rgba(13,148,136,.18);border-top-color:var(--accent);
+  animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ---------- 布局 ---------- */
+main{
+  max-width:1000px;margin:0 auto;padding:14px 20px 40px;
+  display:grid;grid-template-columns:350px 1fr;gap:18px;align-items:start;
+}
+@media(max-width:860px){ main{grid-template-columns:1fr} .chat{height:auto;min-height:60vh} header{flex-wrap:wrap} }
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel-soft));
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;box-shadow:0 10px 32px rgba(18,63,77,.08);
+}
+.card h2{font-size:15px;margin-bottom:12px;color:#0e5a6b;display:flex;align-items:center;gap:6px}
+label{display:block;font-size:13px;color:var(--dim);margin-bottom:10px}
+label span.t{display:block;margin-bottom:4px}
+select,input[type=text],input[type=password],textarea{
+  width:100%;background:#f1f8fa;border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:9px 12px;font-size:14px;
+  outline:none;transition:border-color .15s, box-shadow .15s, background .15s;
+  font-family:inherit;
+}
+textarea{resize:vertical;line-height:1.7}
+select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.14)}
+.hint{font-size:12px;color:var(--dim);margin:8px 0 0;line-height:1.7}
+
+/* ---------- 聊天记录保存/导出 ---------- */
+.log-controls{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+.log-controls .check{
+  display:flex;align-items:flex-start;gap:8px;margin:0 0 10px;
+  font-size:12.5px;color:var(--text);line-height:1.6;cursor:pointer;
+}
+.log-controls .check input{flex:none;width:15px;height:15px;margin-top:2px;accent-color:var(--accent)}
+
+/* ---------- 按钮 ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:none;border-radius:12px;padding:11px 18px;font-size:14px;font-weight:600;
+  cursor:pointer;color:#fff;transition:transform .15s, box-shadow .15s, opacity .15s;
+  font-family:inherit;letter-spacing:.5px;
+}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.primary{background:var(--grad-strong)}
+.btn.primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 22px rgba(13,148,136,.30)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--dim)}
+.btn.small{padding:9px 14px;font-size:13px}
+.row{display:flex;gap:10px}
+.row .btn{flex:1}
+
+/* ---------- 聊天区 ---------- */
+.chat{display:flex;flex-direction:column;height:calc(100vh - 168px);min-height:480px}
+#msgs{
+  flex:1;overflow-y:auto;padding:4px 2px 12px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.bubble{
+  max-width:86%;padding:12px 14px;border-radius:16px;font-size:14px;
+  line-height:1.7;word-break:break-word;white-space:pre-wrap;
+}
+.bubble.user{align-self:flex-end;background:var(--grad-strong);color:#fff;border-bottom-right-radius:6px}
+.bubble.assistant{align-self:flex-start;background:#fff;border:1px solid var(--line);color:var(--text);border-bottom-left-radius:6px}
+.bubble .status{font-size:12px;color:var(--dim);margin-top:8px}
+.bubble .status.err{color:var(--err)}
+.bubble audio{width:100%;margin-top:10px;display:block}
+.bubble .actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.empty{text-align:center;color:var(--dim);font-size:13px;padding:40px 0;margin:auto}
+.composer{display:flex;gap:10px;align-items:flex-end;border-top:1px solid var(--line);padding-top:12px}
+.composer textarea{flex:1;min-height:52px;resize:none}
+.composer .btn{height:52px;padding:0 26px;flex:none}
+.chat-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;font-size:12px;color:var(--dim)}
+
+/* ---------- 弹窗 ---------- */
+.mask{
+  position:fixed;inset:0;background:rgba(10,30,40,.55);
+  display:flex;align-items:center;justify-content:center;z-index:50;
+  padding:16px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+.mask[hidden]{display:none}
+.modal{
+  background:#fff;border-radius:18px;max-width:540px;width:100%;
+  padding:26px 24px;box-shadow:0 24px 64px rgba(0,0,0,.35);
+}
+.modal h2{font-size:18px;color:#b91c1c;margin-bottom:14px}
+.modal-body{font-size:14px;color:var(--text);line-height:1.9}
+.modal-body p{margin-bottom:10px}
+.modal-body ul{margin:4px 0 10px 20px}
+.modal-body li{margin-bottom:6px}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.modal-actions .btn{flex:1}
+
+/* ---------- 报错弹窗（与语音合成台同款） ---------- */
+.err-mask{
+  position:fixed;inset:0;background:rgba(18,63,77,.45);
+  display:flex;align-items:center;justify-content:center;padding:20px;z-index:110;
+}
+.err-mask[hidden]{display:none}
+.err-box{
+  background:#fff;border:1px solid rgba(239,68,68,.3);border-radius:16px;
+  padding:22px 26px;width:min(400px,100%);text-align:center;
+  box-shadow:0 18px 60px rgba(18,63,77,.28);animation:pop .18s ease;
+}
+.err-box img{display:block;width:140px;max-width:72%;margin:0 auto 8px}
+.err-code{font-size:17px;font-weight:800;color:#dc2626;margin-bottom:6px;word-break:break-all}
+.err-msg{font-size:13px;color:var(--dim);line-height:1.6;word-break:break-all;margin-bottom:18px}
+@keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+
+/* ---------- 轻提示 ---------- */
+#toasts{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;
+  display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;
+}
+.toast{
+  background:rgba(18,63,77,.92);color:#fff;padding:10px 18px;border-radius:999px;
+  font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:86vw;
+}
+.toast.err{background:rgba(185,28,28,.95)}
+.toast.ok{background:rgba(16,185,129,.95)}
+</style>
+</head>
+<body>
+
+<!-- 首次进入风险提示弹窗 -->
+<div id="noticeMask" class="mask" hidden>
+  <div class="modal">
+    <h2>风险提示（请先阅读）</h2>
+    <div class="modal-body">
+      <p>本页面是<b>测试版 AI 语音对话</b>：你输入的文字会与<b>你自己填写的模型 API Key</b> 一起，经由本服务器<b>中转</b>发送到你指定的模型服务商。</p>
+      <ul>
+        <li>服务器<b>不会保存、不会记录</b>你的 API Key 与聊天内容，Key 仅存于你浏览器本地，每次请求即时使用，不用于任何其他用途；</li>
+        <li>建议使用<b>额度小、权限受限</b>的 API Key；</li>
+        <li>如不放心，请在使用后前往服务商后台<b>销毁该 API Key</b>；</li>
+        <li>建议通过 <b>HTTPS</b> 访问本页面，避免明文传输。</li>
+      </ul>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="location.href='/'">返回语音合成台</button>
+      <button class="btn primary" id="noticeOk">我已了解，开始使用</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">AI</div>
+  <div class="title-wrap">
+    <h1>AI 语音对话 <span class="badge">测试版</span></h1>
+    <p>文字聊天 · 语音回复（使用你自己的模型 API）</p>
+  </div>
+  <a class="back-link" href="/">← 返回语音合成台</a>
+</header>
+
+<div class="switch-banner" id="switchBanner" hidden>
+  <span class="spin"></span>
+  <span id="switchBannerText">音色切换排队中…</span>
+</div>
+
+<main>
+  <aside>
+    <div class="card" id="settingsCard">
+      <h2>模型设置（使用你自己的 API）</h2>
+      <label><span class="t">常用服务商（可选，自动填充）</span>
+        <select id="preset">
+          <option value="">自定义…</option>
+          <option value="deepseek">DeepSeek（V4 Pro）</option>
+          <option value="qwen">阿里通义千问（Qwen3.8 Max）</option>
+          <option value="glm">智谱 GLM（GLM-5.2）</option>
+          <option value="kimi">Kimi（K3）</option>
+          <option value="openai">OpenAI（GPT-5.6 Sol）</option>
+          <option value="minimax">MiniMax（M3）</option>
+        </select>
+      </label>
+      <label><span class="t">Base URL（OpenAI 兼容）</span>
+        <input id="baseUrl" type="text" placeholder="https://api.deepseek.com" autocomplete="off" spellcheck="false">
+      </label>
+      <label><span class="t">API Key（仅存于你浏览器本地）</span>
+        <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+      </label>
+      <label><span class="t">模型名称</span>
+        <input id="modelName" type="text" placeholder="deepseek-v4-pro" autocomplete="off" spellcheck="false">
+      </label>
+      <label><span class="t">系统提示词（人设，可选）</span>
+        <textarea id="sysPrompt" rows="3" placeholder="留空使用默认人设"></textarea>
+      </label>
+      <div class="row">
+        <button class="btn small primary" id="saveBtn">保存设置</button>
+        <button class="btn small ghost" id="testBtn">测试连接</button>
+      </div>
+      <p class="hint" id="sysHint">设置仅保存在你浏览器本地，服务器不保存你的 Key。系统提示词留空时，自动使用当前音色目录下的 persona.txt 默认人设；只有你手动修改过的人设才会随设置保存，音色自带的默认人设不会保存、切换音色后自动跟随新音色。</p>
+
+      <div class="log-controls">
+        <label class="check">
+          <input type="checkbox" id="saveLog" checked>
+          <span>保存聊天记录到本浏览器（由你决定；记录只存在你自己的浏览器里，不会上传服务器）</span>
+        </label>
+        <div class="row">
+          <button type="button" class="btn small ghost" id="exportLogBtn">导出全部记录</button>
+          <button type="button" class="btn small ghost" id="importLogBtn">导入记录</button>
+          <button type="button" class="btn small ghost" id="clearLogBtn">清空已存记录</button>
+        </div>
+        <input type="file" id="importFile" accept=".md,.txt,text/markdown" hidden>
+        <p class="hint" id="logStatus">正在读取已保存记录…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>语音音色</h2>
+      <label><span class="t">音色</span><select id="voiceSel"></select></label>
+      <label><span class="t">参考音频</span><select id="refSel"></select></label>
+      <label><span class="t">参考文本（可留空）</span><input id="promptText" type="text"></label>
+      <label><span class="t">合成语种</span>
+        <select id="textLangSel">
+          <option value="">跟随参考音频（默认）</option>
+        </select>
+      </label>
+      <p class="hint" id="textLangHint">默认跟随参考音频语种</p>
+      <button class="btn small primary" id="applyVoiceBtn">加载音色</button>
+      <p class="hint" id="loadedInfo">正在获取模型列表…</p>
+      <p class="hint">发送消息时会自动排队加载你选择的音色；点「加载音色」可立即切换。</p>
+    </div>
+  </aside>
+
+  <section class="card chat">
+    <div id="msgs"><div class="empty">和 AI 打个招呼吧～<br>（请先在左侧填好模型设置与音色）</div></div>
+    <div class="composer">
+      <textarea id="input" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+      <button class="btn primary" id="sendBtn">发送</button>
+    </div>
+    <div class="chat-footer">
+      <button class="btn ghost small" id="clearBtn">清空对话</button>
+      <span>测试版：回复内容由 AI 生成，仅供参考 · <a href="/disclaimer">免责声明与注意事项</a></span>
+    </div>
+  </section>
+</main>
+
+<!-- 报错弹窗：与语音合成台同款（错误码提示） -->
+<div class="err-mask" id="errMask" hidden>
+  <div class="err-box" role="alertdialog" aria-modal="true" aria-labelledby="errCode">
+<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false" style="display:block;width:140px;max-width:72%;margin:0 auto 8px"><circle cx="32" cy="32" r="27" fill="rgba(239,68,68,.10)"></circle><circle cx="32" cy="32" r="27" fill="none" stroke="#ef4444" stroke-width="4"></circle><path d="M32 17v19" stroke="#ef4444" stroke-width="5" stroke-linecap="round"></path><circle cx="32" cy="45" r="3.2" fill="#ef4444"></circle></svg>
+    <div class="err-code" id="errCode">出错了</div>
+    <div class="err-msg" id="errMsg"></div>
+    <button type="button" id="errClose" class="btn primary">我知道了</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+
+/* ==================== 工具 ==================== */
+const $ = (id) => document.getElementById(id);
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+function qs(obj){
+  const p = new URLSearchParams();
+  for (const k in obj) if (obj[k] !== undefined && obj[k] !== null) p.set(k, obj[k]);
+  return p.toString();
+}
+async function api(path, opts){
+  let res;
+  try { res = await fetch(path, opts); }
+  catch (e) {
+    const err = new Error("无法连接服务，请检查网络或稍后重试");
+    err.code = "连接失败";
+    throw err;
+  }
+  if (!res.ok){
+    let msg = "HTTP " + res.status;
+    try {
+      const j = await res.json();
+      if (j) msg = j["错误"] || j.detail || j.message || msg;
+    } catch (_) {}
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  const ct = res.headers.get("content-type") || "";
+  return ct.includes("json") ? res.json() : res.text();
+}
+function rel(url){
+  try { return new URL(url, location.href).pathname + new URL(url, location.href).search; }
+  catch (_) { return url; }
+}
+function basename(p){
+  try { return p.split(/[\\/]/).pop(); } catch (_) { return p || ""; }
+}
+function stem(name){ return String(name || "").replace(/\.(wav|mp3|flac|ogg)$/i, ""); }
+
+let toastTimer = 0;
+function toast(msg, kind){
+  const t = document.createElement("div");
+  t.className = "toast" + (kind ? " " + kind : "");
+  t.textContent = msg;
+  $("toasts").appendChild(t);
+  while ($("toasts").children.length > 4) $("toasts").removeChild($("toasts").firstChild);
+  setTimeout(() => { t.style.opacity = "0"; t.style.transition = "opacity .4s"; }, 4200);
+  setTimeout(() => t.remove(), 4700);
+}
+
+/* ==================== 报错弹窗（与语音合成台一致） ==================== */
+const errMask = $("errMask"), errCodeEl = $("errCode"), errMsgEl = $("errMsg");
+function showErrorModal(code, msg){
+  errCodeEl.textContent = code || "出错了";
+  errMsgEl.textContent = msg || "";
+  errMask.hidden = false;
+}
+function closeErrorModal(){ errMask.hidden = true; }
+/* 统一报错入口：弹窗（红色粗体错误码）+ 气泡提示 */
+function reportError(e, prefix){
+  const code = (e && e.status) ? ("HTTP " + e.status) : ((e && e.code) || "出错了");
+  const msg = (prefix ? prefix + "：" : "") + ((e && e.message) || "未知错误");
+  showErrorModal(code, msg);
+  toast(msg, "err");
+}
+$("errClose").addEventListener("click", closeErrorModal);
+
+/* ==================== 本地存储安全封装（隐私模式/禁用存储时不报错） ==================== */
+function lsGet(key){ try { return localStorage.getItem(key); } catch (_) { return null; } }
+function lsSet(key, value){ try { localStorage.setItem(key, value); } catch (_) {} }
+
+/* ==================== 聊天记录持久化（IndexedDB，仅本浏览器） ====================
+ * 由「保存聊天记录」开关控制；开启时每条用户/AI 消息写入本地数据库，
+ * 支持导出全部记录，并供 AI 记忆检索（searchLog）在全部记录中搜索相关内容。 */
+const LOG_DB_NAME = "chat_log_db", LOG_STORE = "records", LOG_DB_VERSION = 1;
+const LOG_SAVE_KEY = "chat.save_log";
+const LOG_VOICE_KEY = "chat.voice";
+let logDbPromise = null;
+function logSaveEnabled(){
+  return document.getElementById("saveLog") ? document.getElementById("saveLog").checked : false;
+}
+function openLogDb(){
+  if (logDbPromise) return logDbPromise;
+  logDbPromise = new Promise((resolve, reject) => {
+    try{
+      const req = indexedDB.open(LOG_DB_NAME, LOG_DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(LOG_STORE)){
+          const st = db.createObjectStore(LOG_STORE, { keyPath: "id", autoIncrement: true });
+          st.createIndex("time", "time", { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error("IndexedDB 打开失败"));
+    }catch(e){ reject(e); }
+  });
+  return logDbPromise;
+}
+async function logAdd(role, content){
+  if (!logSaveEnabled()) return;
+  try{
+    const db = await openLogDb();
+    const v = currentVoice();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(LOG_STORE, "readwrite");
+      tx.objectStore(LOG_STORE).add({
+        role: role, content: String(content || ""), time: Date.now(),
+        voice: currentVoiceKey(), voice_name: v ? v.speaker : "", llm: currentLLM(),
+      });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    updateLogStatus();
+  }catch(_){ /* 存储不可用（隐私模式等）时静默降级，不影响对话 */ }
+}
+async function logAll(){
+  try{
+    const db = await openLogDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(LOG_STORE, "readonly");
+      const req = tx.objectStore(LOG_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }catch(_){ return []; }
+}
+async function logAllForVoice(key){
+  const recs = await logAll();
+  if (!key) return recs.filter(r => !r.voice);
+  return recs.filter(r => !r.voice || r.voice === key);
+}
+async function logClearVoice(key){
+  try{
+    const db = await openLogDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(LOG_STORE, "readwrite");
+      const req = tx.objectStore(LOG_STORE).openCursor();
+      req.onsuccess = () => {
+        const cur = req.result;
+        if (cur){
+          const r = cur.value;
+          if ((!key && !r.voice) || (key && r.voice === key)) cur.delete();
+          cur.continue();
+        }
+      };
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    updateLogStatus();
+    return true;
+  }catch(_){ return false; }
+}
+async function logClear(){
+  try{
+    const db = await openLogDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(LOG_STORE, "readwrite");
+      tx.objectStore(LOG_STORE).clear();
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    updateLogStatus();
+    return true;
+  }catch(_){ return false; }
+}
+async function updateLogStatus(){
+  const el = document.getElementById("logStatus");
+  if (!el) return;
+  try{
+    const all = await logAll();
+    const key = currentVoiceKey();
+    const mine = key ? all.filter(r => r.voice === key) : all.filter(r => !r.voice);
+    const v = currentVoice();
+    const label = v ? ("音色「" + v.speaker + "」· 模型 " + currentLLM()) : "未分区";
+    if (!all.length){
+      el.textContent = "尚未保存任何记录";
+    } else if (mine.length){
+      el.textContent = "当前记录（" + label + "）：已保存 " + mine.length + " 条 · 全部共 " + all.length + " 条";
+    } else {
+      el.textContent = "当前（" + label + "）暂无记录 · 全部共 " + all.length + " 条";
+    }
+  }catch(_){
+    el.textContent = "无法读取记录（当前浏览器可能禁用了本地存储）";
+  }
+}
+/* 在全部已存记录中检索与 query 相关的片段（中文二元组 + 英文/数字词打分） */
+async function searchLog(query, maxN){
+  if (!logSaveEnabled()) return [];
+  const key = currentVoiceKey();
+  const recs = (await logAll()).filter(r => !r.voice || r.voice === key);
+  if (!recs.length) return [];
+  const q = String(query || "").toLowerCase();
+  const grams = new Set();
+  for (let i = 0; i < q.length - 1; i++){
+    const g = q.slice(i, i + 2);
+    if (g.trim().length === 2 && !/^[\d\s.,!?。，！？~·]+$/.test(g)) grams.add(g);
+  }
+  (q.match(/[a-z0-9]{2,}/g) || []).forEach(w => grams.add(w));
+  if (!grams.size) return [];
+  const scored = [];
+  for (const r of recs){
+    const c = String(r.content || "").toLowerCase();
+    let score = 0;
+    for (const g of grams){ if (c.includes(g)) score += g.length; }
+    if (score > 0) scored.push({ rec: r, score: score });
+  }
+  scored.sort((a, b) => b.score - a.score || (b.rec.time || 0) - (a.rec.time || 0));
+  return scored.slice(0, maxN || 6).map(s => ({
+    role: s.rec.role,
+    content: String(s.rec.content).slice(0, 300),
+    time: s.rec.time ? new Date(s.rec.time).toLocaleString("zh-CN") : "",
+  }));
+}
+
+/* ==================== 风险提示弹窗 ==================== */
+const NOTICE_KEY = "chat.notice.ack";
+const noticeMask = $("noticeMask");
+if (lsGet(NOTICE_KEY) === "1"){
+  noticeMask.hidden = true;
+} else {
+  noticeMask.hidden = false;
+}
+$("noticeOk").addEventListener("click", () => {
+  lsSet(NOTICE_KEY, "1");
+  noticeMask.hidden = true;
+  $("input").focus();
+});
+
+/* ==================== 设置读写 ==================== */
+const SET_KEYS = ["base_url", "api_key", "model", "system_prompt"];
+function loadSettings(){
+  $("baseUrl").value = lsGet("chat.base_url") || "";
+  $("apiKey").value = lsGet("chat.api_key") || "";
+  $("modelName").value = lsGet("chat.model") || "";
+  $("sysPrompt").value = lsGet("chat.system_prompt") || "";
+}
+/* 仅当人设是用户自定义（≠ 当前自动加载的默认人设）时才作为配置保存，
+   避免把音色 A 的 persona.txt 存进浏览器、切换音色后盖住音色 B 的默认人设 */
+function currentCustomPersona(){
+  const v = $("sysPrompt").value.trim();
+  return (v && v !== autoPersona) ? v : "";
+}
+function saveSettings(){
+  lsSet("chat.base_url", $("baseUrl").value.trim());
+  lsSet("chat.api_key", $("apiKey").value.trim());
+  lsSet("chat.model", $("modelName").value.trim());
+  lsSet("chat.system_prompt", currentCustomPersona());
+  toast("设置已保存到本地浏览器", "ok");
+}
+const PRESETS = {
+  deepseek: { base: "https://api.deepseek.com", model: "deepseek-v4-pro" },
+  qwen:     { base: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen3.8-max" },
+  glm:      { base: "https://open.bigmodel.cn/api/paas/v4", model: "glm-5.2" },
+  kimi:     { base: "https://api.moonshot.cn/v1", model: "kimi-k3" },
+  openai:   { base: "https://api.openai.com/v1", model: "gpt-5.6-sol" },
+  minimax:  { base: "https://api.minimaxi.com/v1", model: "MiniMax-M3" },
+};
+$("preset").addEventListener("change", () => {
+  const p = PRESETS[$("preset").value];
+  if (!p) return;
+  $("baseUrl").value = p.base;
+  $("modelName").value = p.model;
+  switchConversation();
+});
+$("saveBtn").addEventListener("click", saveSettings);
+$("modelName").addEventListener("change", () => { saveSettingsSilent(); switchConversation(); });
+$("testBtn").addEventListener("click", async () => {
+  const baseUrl = $("baseUrl").value.trim(), apiKey = $("apiKey").value.trim();
+  if (!baseUrl || !apiKey){ toast("请先填写 Base URL 和 API Key", "err"); $("settingsCard").scrollIntoView({ behavior: "smooth" }); return; }
+  $("testBtn").disabled = true; $("testBtn").textContent = "测试中…";
+  try {
+    const r = await api("/chat/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        base_url: baseUrl, api_key: apiKey,
+        model: $("modelName").value.trim() || "deepseek-v4-pro",
+      }),
+    });
+    toast("连接成功，模型回复：" + (r["回复"] || ""), "ok");
+  } catch (e) {
+    reportError(e, "连接测试失败");
+  } finally {
+    $("testBtn").disabled = false; $("testBtn").textContent = "测试连接";
+  }
+});
+
+/* ==================== 音色 ==================== */
+let lib = null, loadedPaths = null, serverPaths = null, curRefLang = "auto", autoPersona = "";
+const LANG_LABELS = {
+  auto: "自动识别", auto_yue: "自动识别（粤语优先）",
+  zh: "中文", en: "英文", ja: "日语", yue: "粤语", ko: "韩语",
+  all_zh: "中文（纯）", all_en: "英文（纯）", all_ja: "日语（纯）",
+  all_yue: "粤语（纯）", all_ko: "韩语（纯）",
+};
+const textLangSel = $("textLangSel"), textLangHint = $("textLangHint");
+
+/* 合成语种下拉框：首项「跟随参考音频」，其余与主合成台一致（取自 /health 语言列表） */
+function populateLangSel(langs){
+  const list = (langs && langs.length) ? langs : Object.keys(LANG_LABELS);
+  textLangSel.innerHTML = '<option value="">跟随参考音频（默认）</option>';
+  for (const l of list){
+    const o = document.createElement("option");
+    o.value = l;
+    o.textContent = (LANG_LABELS[l] || l) + "（" + l + "）";
+    textLangSel.appendChild(o);
+  }
+}
+function updateTextLangHint(){
+  if (textLangSel.value){
+    const o = Array.from(textLangSel.options).find(x => x.value === textLangSel.value);
+    textLangHint.textContent = "已指定合成语种：" + (o ? o.textContent : textLangSel.value) + "（不跟随参考音频）";
+  } else {
+    const cur = (curRefLang === "auto") ? "自动识别(auto)" : curRefLang;
+    textLangHint.textContent = "默认跟随参考音频语种（当前：" + cur + "）";
+  }
+}
+textLangSel.addEventListener("change", updateTextLangHint);
+
+/* ==================== 聊天记录分区（按音色 + 模型名） ==================== */
+function currentVoice(){
+  return (lib && lib.voices[parseInt($("voiceSel").value)]) || null;
+}
+function currentLLM(){
+  return $("modelName").value.trim() || "deepseek-v4-pro";
+}
+function currentVoiceKey(){
+  const v = currentVoice();
+  return v ? (v.speaker + "||" + currentLLM()) : "";
+}
+function saveVoiceChoice(){
+  try { localStorage.setItem(LOG_VOICE_KEY, $("voiceSel").value); } catch (_) {}
+}
+function renderHistoryBubbles(recs){
+  const m = $("msgs");
+  m.innerHTML = "";
+  if (!recs.length){
+    m.innerHTML = '<div class="empty">和 AI 打个招呼吧～<br>（请先在左侧填好模型设置与音色）</div>';
+    return;
+  }
+  for (const r of recs){
+    const b = document.createElement("div");
+    b.className = "bubble " + (r.role === "user" ? "user" : "assistant");
+    const t = document.createElement("div");
+    t.className = "text"; t.textContent = String(r.content || "");
+    b.appendChild(t);
+    if (r.role !== "user"){
+      const s = document.createElement("div");
+      s.className = "status"; s.textContent = "（历史回复 · 无音频）";
+      b.appendChild(s);
+    }
+    m.appendChild(b);
+  }
+  scrollBottom();
+}
+/* 切换音色/模型时：加载该「音色+模型」对应的聊天记录（最近 20 轮作为上下文） */
+async function switchConversation(){
+  chatHistory = [];
+  players.forEach(p => p.pause());
+  players.length = 0;
+  const key = currentVoiceKey();
+  const recs = (await logAllForVoice(key)).sort((a, b) => (a.time || 0) - (b.time || 0));
+  renderHistoryBubbles(recs);
+  chatHistory = recs.slice(-40).map(r => ({ role: r.role, content: String(r.content || "").slice(0, 1000) }));
+  updateLogStatus();
+}
+
+async function loadModels(){
+  try {
+    lib = await api("/models");
+  } catch (e) {
+    $("loadedInfo").textContent = "无法获取模型列表：" + (e.message || "");
+    reportError(e, "获取模型列表失败");
+    return;
+  }
+  try {
+    const h = await api("/health");
+    populateLangSel(h.languages || null);
+  } catch (_) {
+    populateLangSel(null);
+  }
+  const vs = $("voiceSel");
+  vs.innerHTML = "";
+  if (!lib.voices.length){
+    const o = document.createElement("option");
+    o.value = ""; o.textContent = "未发现模型文件";
+    vs.appendChild(o); vs.disabled = true;
+    $("loadedInfo").textContent = "未发现模型，暂无法语音回复";
+    return;
+  }
+  lib.voices.forEach((v, i) => {
+    const o = document.createElement("option");
+    o.value = String(i);
+    o.textContent = v.speaker + "（GPT " + v.gpt.length + " · SoVITS " + v.sovits.length + "）";
+    vs.appendChild(o);
+  });
+  // 优先恢复上次使用的音色，其次服务端当前加载的音色，最后第一个
+  const cur = lib.current || {};
+  serverPaths = cur.loaded ? { gpt: cur.gpt, sovits: cur.sovits } : null;
+  let idx = -1;
+  const saved = lsGet(LOG_VOICE_KEY);
+  if (saved !== null && lib.voices[+saved]) idx = +saved;
+  if (idx < 0){
+    idx = lib.voices.findIndex(v =>
+      v.gpt.some(m => m.path === cur.gpt || basename(m.path) === basename(cur.gpt)) &&
+      v.sovits.some(m => m.path === cur.sovits || basename(m.path) === basename(cur.sovits)));
+  }
+  if (idx < 0) idx = 0;
+  vs.value = String(idx);
+  const v0 = lib.voices[idx];
+  loadedPaths = (v0 && v0.gpt.length && v0.sovits.length)
+    ? { gpt: v0.gpt[0].path, sovits: v0.sovits[0].path } : null;
+  await fillVoice(idx);
+  updateLoadedInfo();
+  await switchConversation();
+}
+async function fillVoice(idx){
+  const v = lib.voices[idx];
+  if (!v) return;
+  const rs = $("refSel");
+  rs.innerHTML = "";
+  (v.refs || []).forEach((r) => {
+    const o = document.createElement("option");
+    o.value = r.path; o.textContent = r.name;
+    rs.appendChild(o);
+  });
+  if (v.refs && v.refs.length){
+    rs.value = v.refs[0].path;
+    const r = v.refs[0];
+    $("promptText").value = r.sentence_like ? stem(r.name) : "";
+    curRefLang = r.lang_hint || "auto";
+  } else {
+    $("promptText").value = "";
+    curRefLang = "auto";
+  }
+  updateTextLangHint();
+  await loadVoicePersona(rs.value, v.speaker);
+}
+/* 音色目录下的 persona.txt 默认人设：仅当提示词框为空或仍是上次自动填充的内容时覆盖；
+   用户自定义的人设始终优先，不会被切换音色覆盖，也不随「保存设置」写入本地 */
+async function loadVoicePersona(refPath, speaker){
+  if (!refPath) return;
+  const cur = $("sysPrompt").value.trim();
+  const wasAuto = autoPersona !== "" && cur === autoPersona; // 框里仍是上一个音色的自动人设
+  if (cur && !wasAuto) return; // 用户自己写的提示词（自定义人设），不覆盖
+  let persona = "";
+  try {
+    const t = await api("/persona?" + qs({ ref_audio_path: refPath }));
+    if (t) persona = t.trim();
+  } catch (_) { /* 无 persona.txt，忽略 */ }
+  if (persona){
+    $("sysPrompt").value = persona;
+    autoPersona = persona;
+    $("sysHint").textContent = "已自动加载「" + speaker + "」的默认人设（可修改；清空则使用服务器默认人设）。";
+  } else {
+    if (wasAuto) $("sysPrompt").value = ""; // 新音色无默认人设，清掉上一个音色的自动人设
+    autoPersona = "";
+    $("sysHint").textContent = "该音色暂无 persona.txt 默认人设，留空将使用服务器默认人设。";
+  }
+}
+$("voiceSel").addEventListener("change", () => {
+  const idx = parseInt($("voiceSel").value);
+  const v = lib.voices[idx];
+  loadedPaths = (v && v.gpt.length && v.sovits.length)
+    ? { gpt: v.gpt[0].path, sovits: v.sovits[0].path } : null;
+  saveVoiceChoice();
+  fillVoice(idx);
+  updateLoadedInfo();
+  switchConversation();
+});
+/* 手动切换参考音频时，同步参考音频语种（合成语种「跟随参考音频」的默认值随之更新） */
+$("refSel").addEventListener("change", () => {
+  const v = lib.voices[parseInt($("voiceSel").value)];
+  const r = ((v && v.refs) || []).find(x => x.path === $("refSel").value);
+  curRefLang = r ? (r.lang_hint || "auto") : "auto";
+  updateTextLangHint();
+  loadVoicePersona($("refSel").value, v ? v.speaker : "");
+});
+function updateLoadedInfo(){
+  if (loadedPaths){
+    let txt = "当前选择：" + basename(loadedPaths.gpt) + " / " + basename(loadedPaths.sovits);
+    if (serverPaths && !sameVoice(loadedPaths, serverPaths)){
+      txt += "（服务端当前为 " + basename(serverPaths.gpt) + " / " + basename(serverPaths.sovits) + "，发送消息将自动排队切换）";
+    }
+    $("loadedInfo").textContent = txt;
+  } else {
+    $("loadedInfo").textContent = "尚未选择音色";
+  }
+}
+
+/* ==================== 音色切换（异步排队 + 全局横幅） ==================== */
+
+function sameVoice(a, b){
+  if (!a || !b) return false;
+  return (a.sovits === b.sovits || basename(a.sovits) === basename(b.sovits)) &&
+         (a.gpt === b.gpt || basename(a.gpt) === basename(b.gpt));
+}
+
+function renderSwitchBanner(st){
+  const p = st && st.pending;
+  if (!p){ $("switchBanner").hidden = true; return; }
+  $("switchBanner").hidden = false;
+  const op = p.operator ? "（操作人：" + p.operator + "）" : "";
+  const tgt = (p.target && p.target.sovits_name) || "";
+  const d = p.drain || {};
+  if (p.phase === "loading"){
+    $("switchBannerText").textContent = "正在加载新音色" + (tgt ? "「" + tgt + "」" : "") + op
+      + "，加载期间新提交的合成任务将自动排队等待…";
+  } else if (p.force){
+    $("switchBannerText").textContent = "紧急切换音色" + (tgt ? "「" + tgt + "」" : "") + op
+      + "：正在等待 " + (d.running || 0) + " 个运行中的任务结束，之后排队的任务将改用新音色…";
+  } else {
+    $("switchBannerText").textContent = "音色切换排队中 → " + (tgt ? "「" + tgt + "」" : "") + op
+      + "：等待前方 " + (d.remaining || 0) + " 个任务完成（预计 " + (p.eta_seconds || 0)
+      + " 秒），期间新提交的任务会排队等自己的音色";
+  }
+}
+
+async function pollSwitchBanner(){
+  try{
+    const st = await api("/switch_status");
+    renderSwitchBanner(st);
+    if (st.current){
+      serverPaths = { gpt: st.current.gpt, sovits: st.current.sovits };
+      updateLoadedInfo();
+    }
+  }catch(_){}
+}
+
+/* 等待本次切换真正生效。返回 true=目标音色已加载；false=被其他人的切换覆盖 */
+async function waitSwitch(target){
+  for (let i = 0; i < 900; i++){
+    const st = await api("/switch_status");
+    renderSwitchBanner(st);
+    const cur = st.current || {};
+    if (sameVoice(cur, target)) return true;
+    const lr = st.last_result;
+    if (lr && lr.status === "failed" && sameVoice(lr.target, target)){
+      const e = new Error("切换失败：" + (lr.error || "未知错误"));
+      e.code = "切换失败";
+      throw e;
+    }
+    const p = st.pending;
+    if (p && !sameVoice(p.target, target)){
+      /* 我们的切换已被别人的请求合并覆盖：界面保持自己的选择 */
+      updateLoadedInfo();
+      toast("你的音色切换已被其他人的操作覆盖，界面保持你的选择；发送消息会自动排队切回", "warn");
+      return false;
+    }
+    if (!p && !sameVoice(cur, target)){
+      updateLoadedInfo();
+      toast("你的音色已被其他人切换，界面保持你的选择；发送消息会自动排队切回", "warn");
+      return false;
+    }
+    await sleep(1500);
+  }
+  const e = new Error("等待切换生效超时，请查看顶部横幅或稍后刷新");
+  e.code = "切换超时";
+  throw e;
+}
+
+$("applyVoiceBtn").addEventListener("click", async () => {
+  if (busy){ toast("请等待当前回复生成完成", "err"); return; }
+  const v = lib.voices[parseInt($("voiceSel").value)];
+  if (!v){ toast("请先选择音色", "err"); return; }
+  if (!v.gpt.length || !v.sovits.length){ toast("该音色缺少 GPT 或 SoVITS 模型文件", "err"); return; }
+  $("applyVoiceBtn").disabled = true; $("applyVoiceBtn").textContent = "提交切换…";
+  try {
+    const res = await api("/set_voice?" + qs({ sovits: v.sovits[0].path, gpt: v.gpt[0].path }));
+    if (!res || (res["结果"] !== "成功" && res["结果"] !== "已受理")){
+      throw new Error((res && (res["错误"] || res["说明"])) || "服务返回异常");
+    }
+    if (res["结果"] === "已受理"){
+      $("loadedInfo").textContent = "音色切换排队中…" + res["说明"];
+      toast(res["说明"], "ok");
+      $("applyVoiceBtn").textContent = "切换排队中…";
+      const ok = await waitSwitch({ gpt: v.gpt[0].path, sovits: v.sovits[0].path });
+      if (!ok) return;
+    }
+    loadedPaths = { gpt: v.gpt[0].path, sovits: v.sovits[0].path };
+    saveVoiceChoice();
+    updateLoadedInfo();
+    toast("音色加载完成", "ok");
+  } catch (e) {
+    reportError(e, "模型加载失败");
+  } finally {
+    $("applyVoiceBtn").disabled = false; $("applyVoiceBtn").textContent = "加载音色";
+  }
+});
+
+/* ==================== 聊天 ==================== */
+let busy = false;
+let chatHistory = [];   // [{role, content}] 最近 10 轮
+const players = [];     // 所有回复音频，新播放时暂停旧的
+
+function scrollBottom(){
+  const m = $("msgs");
+  m.scrollTop = m.scrollHeight;
+}
+function appendUser(text){
+  const b = document.createElement("div");
+  b.className = "bubble user";
+  b.textContent = text;
+  $("msgs").appendChild(b);
+  scrollBottom();
+}
+function appendAssistant(){
+  const b = document.createElement("div");
+  b.className = "bubble assistant";
+  const t = document.createElement("div");
+  t.className = "text"; t.textContent = "正在生成回复…";
+  const s = document.createElement("div");
+  s.className = "status"; s.textContent = "";
+  const a = document.createElement("audio");
+  a.controls = true; a.preload = "auto"; a.playsinline = true; a.style.display = "none";
+  a.addEventListener("error", () => {
+    s.textContent = "音频加载失败：点「下载」保存后用本地播放器打开";
+  });
+  const acts = document.createElement("div");
+  acts.className = "actions";
+  b.append(t, s, a, acts);
+  $("msgs").appendChild(b);
+  players.push(a);
+  scrollBottom();
+  return { bubble: b, text: t, status: s, audio: a, actions: acts };
+}
+async function pollTask(res, statusEl){
+  const statusUrl = res.status_url ? rel(res.status_url)
+    : "/task_status/" + encodeURIComponent(res.task_id);
+  for (;;){
+    const st = await api(statusUrl);
+    if (st.status === "done") return st;
+    if (st.status === "error"){
+      const err = new Error(st.error || "语音合成失败");
+      err.code = "任务失败";
+      throw err;
+    }
+    statusEl.textContent = st.tip || "生成语音中…";
+    await sleep(1500);
+  }
+}
+async function send(){
+  if (busy) return;
+  if (lsGet(NOTICE_KEY) !== "1"){ noticeMask.hidden = false; return; }
+  const text = $("input").value.trim();
+  if (!text){ toast("请输入消息", "err"); $("input").focus(); return; }
+  const baseUrl = $("baseUrl").value.trim(), apiKey = $("apiKey").value.trim();
+  if (!baseUrl || !apiKey){
+    toast("请先填写 Base URL 和 API Key", "err");
+    $("settingsCard").scrollIntoView({ behavior: "smooth" });
+    $("baseUrl").focus();
+    return;
+  }
+  saveSettingsSilent();
+  appendUser(text);
+  logAdd("user", text);
+  $("input").value = "";
+  busy = true; $("sendBtn").disabled = true;
+  const box = appendAssistant();
+  try {
+    // 从本浏览器保存的全部聊天记录中检索相关片段，注入给模型做长期记忆
+    const memoryHints = await searchLog(text, 6);
+    const res = await api("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: text,
+        base_url: baseUrl,
+        api_key: apiKey,
+        model: $("modelName").value.trim() || "deepseek-v4-pro",
+        system_prompt: $("sysPrompt").value.trim(),
+        history: chatHistory,
+        memory_hints: memoryHints.length ? memoryHints : undefined,
+        ref_audio_path: $("refSel").value || undefined,
+        prompt_text: $("promptText").value.trim(),
+        prompt_lang: curRefLang || "auto",
+        text_lang: textLangSel.value || undefined,
+        gpt_path: (currentVoice() && currentVoice().gpt.length) ? currentVoice().gpt[0].path : "",
+        sovits_path: (currentVoice() && currentVoice().sovits.length) ? currentVoice().sovits[0].path : "",
+        speed_factor: 1.0,
+        media_type: "wav",
+      }),
+    });
+    box.text.textContent = res.reply || "(无回复)";
+    logAdd("assistant", res.reply || "");
+    chatHistory.push({ role: "user", content: text.slice(0, 1000) });
+    chatHistory.push({ role: "assistant", content: (res.reply || "").slice(0, 1000) });
+    if (chatHistory.length > 40) chatHistory = chatHistory.slice(-40); // 最近 20 轮
+    box.status.textContent = "正在合成语音…";
+    const st = await pollTask(res, box.status);
+    box.status.textContent = "";
+    box.audio.style.display = "block";
+    // 走 fetch + Blob 加载：绕开部分安卓浏览器（vivo/iQOO 等）对直链媒体的
+    // 原生播放器拦截（直链会被其原生播放器接管而卡住，Blob 播放经实测正常）
+    try{
+      const resp = await fetch(rel(st.download_url));
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const buf = await resp.arrayBuffer();
+      box.audio.src = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+      players.forEach(p => { if (p !== box.audio) p.pause(); });
+      try { await box.audio.play(); }
+      catch (_) { box.status.textContent = "点击播放按钮试听"; }
+    }catch(e){
+      box.audio.style.display = "none";
+      box.status.className = "status err";
+      box.status.textContent = "语音加载失败：" + e.message + "（点「下载」可保存后本地播放）";
+    }
+    const dl = document.createElement("a");
+    dl.className = "btn ghost small"; dl.textContent = "下载";
+    dl.href = "javascript:void(0)";
+    dl.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      try{
+        const resp = await fetch(rel(st.download_url));
+        const buf = await resp.arrayBuffer();
+        const u = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+        const a = document.createElement("a");
+        a.href = u; a.download = "chat.wav";
+        document.body.appendChild(a); a.click(); a.remove();
+      }catch(e2){ toast("下载失败：" + e2.message, "err"); }
+    });
+    box.actions.append(dl);
+  } catch (e) {
+    box.status.className = "status err";
+    box.status.textContent = (e.message || "出错了") + "（可修改设置后重试）";
+    reportError(e, "对话失败");
+  } finally {
+    busy = false; $("sendBtn").disabled = false;
+    scrollBottom(); $("input").focus();
+  }
+}
+function saveSettingsSilent(){
+  lsSet("chat.base_url", $("baseUrl").value.trim());
+  lsSet("chat.api_key", $("apiKey").value.trim());
+  lsSet("chat.model", $("modelName").value.trim());
+  lsSet("chat.system_prompt", currentCustomPersona());
+}
+$("sendBtn").addEventListener("click", send);
+$("input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey){
+    e.preventDefault();
+    send();
+  }
+});
+$("clearBtn").addEventListener("click", async () => {
+  if (!confirm("确定清空当前对话吗？（也会清除当前音色+模型在本浏览器保存的聊天记录与 AI 记忆）")) return;
+  chatHistory = [];
+  players.forEach(p => p.pause());
+  players.length = 0;
+  await logClearVoice(currentVoiceKey());
+  $("msgs").innerHTML = '<div class="empty">和 AI 打个招呼吧～<br>（请先在左侧填好模型设置与音色）</div>';
+});
+
+/* ==================== 聊天记录开关 / 导出 / 清空 ==================== */
+const saveLogEl = $("saveLog");
+if (saveLogEl){
+  if (lsGet(LOG_SAVE_KEY) === "0") saveLogEl.checked = false; // 用户之前明确关过才默认关闭
+  saveLogEl.addEventListener("change", () => {
+    lsSet(LOG_SAVE_KEY, saveLogEl.checked ? "1" : "0");
+    updateLogStatus();
+    toast(saveLogEl.checked ? "已开启聊天记录保存（仅存于本浏览器，AI 可从中搜索记忆）" : "已关闭聊天记录保存", "ok");
+  });
+}
+$("exportLogBtn").addEventListener("click", async () => {
+  const recs = await logAll();
+  if (!recs.length){ toast("没有已保存的记录", "err"); return; }
+  recs.sort((a, b) => (a.time || 0) - (b.time || 0));
+  let md = "# AI 语音对话记录\n\n导出时间：" + new Date().toLocaleString("zh-CN")
+         + "\n共 " + recs.length + " 条\n\n---\n\n";
+  for (const r of recs){
+    const t = r.time ? new Date(r.time).toLocaleString("zh-CN") : "";
+    const tag = (r.voice_name || r.llm) ? (" · 音色 " + (r.voice_name || "未分区") + " · 模型 " + (r.llm || "?")) : "";
+    md += "## " + (r.role === "user" ? "我" : "AI") + " · " + t + tag + "\n\n"
+        + String(r.content || "") + "\n\n---\n\n";
+  }
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = u;
+  a.download = "AI对话记录-" + new Date().toISOString().slice(0, 10) + ".md";
+  document.body.appendChild(a); a.click(); a.remove();
+  toast("已导出 " + recs.length + " 条记录", "ok");
+});
+
+/* ==================== 导入聊天记录（支持本页导出的 .md 文件） ==================== */
+/* 解析导出的 Markdown：## 我/AI · 时间 · 音色 X · 模型 Y + 正文，记录间以 --- 分隔 */
+function parseExportedLog(text){
+  const records = [];
+  const lines = String(text || "").split(/\r?\n/);
+  const timeRe = /(\d{4})\/(\d{1,2})\/(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/;
+  const tagRe = /音色\s+(.+?)\s*·\s*模型\s+(.+)$/;
+  let cur = null;
+  for (const raw of lines){
+    const line = raw.trimEnd();
+    const head = line.match(/^##\s+(我|AI)(?:\s*·\s*(.*))?$/);
+    if (head){
+      if (cur) records.push(cur);
+      const meta = head[2] || "";
+      let time = 0, voice = "", llm = "";
+      const tm = meta.match(timeRe);
+      if (tm){
+        time = new Date(+tm[1], +tm[2] - 1, +tm[3], +tm[4], +tm[5], +(tm[6] || 0)).getTime();
+      }
+      const tg = meta.match(tagRe);
+      if (tg){ voice = tg[1].trim(); llm = tg[2].trim(); }
+      cur = { role: head[1] === "我" ? "user" : "assistant", content: "", time, voice, llm };
+      continue;
+    }
+    if (cur && !/^\s*---+\s*$/.test(line) && !/^#\s/.test(line)){
+      if (cur.content) cur.content += "\n";
+      cur.content += line;
+    }
+  }
+  if (cur) records.push(cur);
+  return records.filter(r => r.content.trim());
+}
+
+async function importLogFile(file){
+  const text = await file.text();
+  const parsed = parseExportedLog(text);
+  if (!parsed.length){
+    toast("未解析到任何聊天记录（请选择本页导出的 .md 文件）", "err");
+    return;
+  }
+  // 重复记录跳过（按 角色+内容+时间+音色 判断）
+  const existing = await logAll();
+  const seen = new Set(existing.map(r =>
+    [r.role, String(r.content || ""), r.time || 0, r.voice || ""].join("|")));
+  const fresh = parsed.filter(r =>
+    !seen.has([r.role, String(r.content || ""), r.time || 0, r.voice || ""].join("|")));
+  if (!fresh.length){
+    toast("文件中没有新记录（都已存在）", "warn");
+    return;
+  }
+  if (!confirm("将从文件导入 " + fresh.length + " 条聊天记录，重复记录自动跳过。继续？")) return;
+  const db = await openLogDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(LOG_STORE, "readwrite");
+    const st = tx.objectStore(LOG_STORE);
+    for (const r of fresh){
+      const rec = {
+        role: r.role,
+        content: String(r.content || "").trim(),
+        time: r.time || Date.now(),
+        voice_name: r.voice || "",
+        llm: r.llm || "",
+      };
+      if (r.voice) rec.voice = r.voice; // 无音色标签的记录保持「未分区」，与旧记录一致
+      st.add(rec);
+    }
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+  updateLogStatus();
+  switchConversation();
+  toast("已导入 " + fresh.length + " 条记录（共解析 " + parsed.length + " 条）", "ok");
+}
+
+$("importLogBtn").addEventListener("click", () => $("importFile").click());
+$("importFile").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = ""; // 允许再次选择同一文件
+  if (!f) return;
+  try{
+    await importLogFile(f);
+  }catch(err){
+    toast("导入失败：" + ((err && err.message) || "未知错误"), "err");
+  }
+});
+$("clearLogBtn").addEventListener("click", async () => {
+  if (!confirm("确定清空已保存到本浏览器的全部聊天记录吗？（当前页面上的对话不受影响）")) return;
+  const ok = await logClear();
+  toast(ok ? "已清空全部记录" : "清空失败（浏览器存储不可用）", ok ? "ok" : "err");
+});
+
+/* ==================== 初始化 ==================== */
+loadSettings();
+loadModels();
+updateLogStatus();
+pollSwitchBanner();
+setInterval(pollSwitchBanner, 4000);
+</script>
+</body>
+</html>
