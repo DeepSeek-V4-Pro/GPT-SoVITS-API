@@ -20,7 +20,8 @@
 - **AI 语音对话（测试版）**：自带 OpenAI 兼容 API Key，服务端仅中转、不保存；
   上下文最多 20 轮；聊天记录可由用户选择永久保存至浏览器（IndexedDB）、
   **按「音色 + 模型」分区**管理，支持导出 Markdown 与**导入**（自动识别标签、重复跳过）；
-  AI 可从全部历史记录中检索相关内容作为长期记忆
+  AI 可从全部历史记录中检索相关内容作为长期记忆；模型名称支持**自动获取可用模型列表**
+  （「获取列表」按钮，服务端代理调用各服务商的 `GET /models`，内置预设服务商与推荐模型置顶作为默认推荐）
 - **移动端播放兼容**：音频直链始终返回完整 200 响应，前端播放/下载统一走 fetch + Blob，
   修复安卓 WebView / 国产浏览器「合成成功但无法播放」的问题
 - **安全防护**：IP 黑白名单、限流（仅重资源端点）、路径穿越校验、SSRF 防护、音频访问令牌、
@@ -198,7 +199,7 @@ bash GPT-SoVITS-API/start.sh   # 可用环境变量 PYTHON_EXE 指定解释器
 | GET | `/set_gpt_weights` · `/set_sovits_weights` | 模型热切换（202 异步受理） |
 | GET | `/switch_status` | 音色切换状态（当前音色 / 待切换进度） |
 | GET | `/health` · `/config` | 状态与配置 |
-| GET | `/chat` · POST `/chat` · POST `/chat/test` · GET `/persona` | AI 语音对话（测试版） |
+| GET | `/chat` · POST `/chat` · POST `/chat/test` · POST `/chat/models` · GET `/persona` | AI 语音对话（测试版） |
 | POST | `/feedback` | 意见反馈 |
 
 完整参数说明见 `/docs`。

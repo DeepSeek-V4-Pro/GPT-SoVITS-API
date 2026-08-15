@@ -8,7 +8,7 @@ FastAPI 文档内容与主题
 """
 
 API_TITLE = "GPT-SoVITS 语音合成 API（语音合成台）"
-API_VERSION = "1.2"
+API_VERSION = "1.3"
 SWAGGER_CSS_URL = "/assets/swagger_theme.css"
 
 CONTACT = {
@@ -61,6 +61,7 @@ API_DESCRIPTION = (
     "| GET  | `/chat` | **AI 语音对话前台（测试版）**：文字聊天 + 语音回复，自带 API Key |\n"
     "| POST | `/chat` | AI 对话（测试版）：服务端中转调用你填写的模型 API，回复交给语音合成 |\n"
     "| POST | `/chat/test` | 测试模型接口连通性（测试版） |\n"
+    "| POST | `/chat/models` | 自动获取可用模型列表（测试版）：GET {base_url}/models，前台「获取列表」按钮使用 |\n"
     "| GET  | `/persona` | 读取音色目录下的 persona.txt 默认人设（测试版） |\n"
     "| GET  | `/models` | 扫描并列出全部可用音色、模型与参考音频 |\n"
     "| GET  | `/set_voice` | 切换音色（SoVITS+GPT 一次完成，202 异步受理；支持 operator/force/token 参数） |\n"

@@ -115,3 +115,9 @@ class ChatTestRequest(BaseModel):
     base_url: str = Field(description="OpenAI 兼容接口地址")
     api_key: str = Field(description="用户自备的 API Key")
     model: str = Field(default="deepseek-v4-pro", description="模型名称")
+
+
+class ChatModelsRequest(BaseModel):
+    """自动获取可用模型列表（测试版）: GET {base_url}/models"""
+    base_url: str = Field(description="OpenAI 兼容接口地址，如 https://api.deepseek.com（服务端仅中转，不保存）")
+    api_key: str = Field(description="用户自备的 API Key（仅本次请求使用，服务端不保存不记录）")

@@ -34,7 +34,7 @@ tts_api/
 │   ├── system.py      /health /models /config /feedback
 │   ├── models.py      /set_voice /set_gpt_weights /set_sovits_weights /switch_status
 │   ├── tts.py         /tts /task_status /audio /play 与前台首页
-│   └── chat.py        /chat /chat/test /persona（测试版）
+│   └── chat.py        /chat /chat/test /chat/models /persona（测试版）
 └── frontend/          前端副本（index.html / chat.html / debug_audio.html / assets，
                        assets 内 swagger_theme.css 为 /docs 文档页主题）
 ```
@@ -74,6 +74,11 @@ tts_api/
   （「清空对话」只清当前分区，「清空已存记录」清全部；旧的无标签记录保持未分区不丢失）；
 - 长期记忆：发消息时前端在全部已存记录中做关键词检索，最相关片段经
   `memory_hints` 注入上下文，模型可回忆更早的历史内容。
+- 模型列表自动获取：聊天页新增「获取列表」按钮，
+  经 `POST /chat/models` 服务端代理调用各厂商 OpenAI 兼容的 `GET {base_url}/models`
+  （自动尝试 `/vN/models` 与 `/models` 两种地址），返回可用模型清单填入模型下拉框；
+  内置预设服务商与推荐模型仍在候选列表**置顶作为默认推荐**，接口不支持或获取失败时
+  仍可手动输入模型名，不影响对话。
 
 ## 移动端播放兼容（已修复）
 

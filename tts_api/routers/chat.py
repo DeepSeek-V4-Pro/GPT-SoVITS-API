@@ -4,6 +4,7 @@ AI 语音对话端点（测试版）
 GET  /chat         AI 语音对话前台（tts_api/frontend/chat.html）
 POST /chat         AI 对话 + 语音回复（202 返回 task_id 与回复文本）
 POST /chat/test    测试模型接口连通性
+POST /chat/models  自动获取可用模型列表（GET {base_url}/models）
 GET  /persona      读取音色目录下的 persona.txt 默认人设
 """
 
@@ -18,11 +19,12 @@ from ..logging_setup import logger
 from ..engine import models_ready
 from ..llm import (
     _call_llm_sync,
+    _fetch_models_sync,
     clean_reply_for_tts,
     load_voice_persona,
     truncate_for_tts,
 )
-from ..schemas import ChatRequest, ChatTestRequest
+from ..schemas import ChatModelsRequest, ChatRequest, ChatTestRequest
 from ..security import (
     _get_client_ip,
     _is_local_ip,
@@ -57,6 +59,28 @@ async def chat_test(body: ChatTestRequest):
         logger.warning("CHAT 测试失败: %s", str(e)[:200])
         return error_response(502, "调用模型服务失败：" + str(e))
     return {"结果": "成功", "模型": body.model, "回复": reply}
+
+
+@router.post("/chat/models", summary="自动获取可用模型列表（测试版）",
+             description="请求你填写的 OpenAI 兼容接口的 GET /models 列表端点，返回可用模型清单"
+                         "（自动识别 /v1/models 与 /models 两种地址，404 时回退尝试）。"
+                         "Base URL 仅允许公网地址，API Key 仅本次请求使用、不保存。"
+                         "各服务商是否支持该端点以其文档为准，不支持时仍可在前台手动输入模型名。",
+             response_description="成功返回 {结果: 成功, 数量: N, 模型: [{id, owned_by}]}", tags=["AI 对话"])
+async def chat_models(body: ChatModelsRequest):
+    base_url = (body.base_url or "").strip().rstrip("/")
+    api_key = (body.api_key or "").strip()
+    if not base_url or not api_key:
+        return error_response(400, "请填写 Base URL 与 API Key")
+    if not is_public_url(base_url):
+        return error_response(400, "Base URL 不合法：仅允许公网 http/https 地址")
+    try:
+        models = await asyncio.to_thread(_fetch_models_sync, base_url, api_key)
+    except RuntimeError as e:
+        logger.warning("CHAT 获取模型列表失败: %s", str(e)[:200])
+        return error_response(502, "获取模型列表失败：" + str(e))
+    logger.info("CHAT 获取模型列表成功 数量=%d", len(models))
+    return {"结果": "成功", "数量": len(models), "模型": models}
 
 
 @router.get("/persona", summary="获取音色默认人设",

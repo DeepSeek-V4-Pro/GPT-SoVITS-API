@@ -113,6 +113,9 @@ CHAT_MAX_TOKENS = 1024
 # LLM 调用超时（秒）
 CHAT_LLM_TIMEOUT = 60
 
+# 获取可用模型列表（/chat/models）的超时（秒）
+CHAT_MODELS_TIMEOUT = 20
+
 # 默认人设（系统提示词）: 音色目录无 persona.txt 时使用。
 # 推荐给每个音色目录放 persona.txt，即可按音色自动切换人设。
 DEFAULT_CHAT_SYSTEM_PROMPT = (

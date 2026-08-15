@@ -92,8 +92,8 @@ main{
   padding:18px;box-shadow:0 10px 32px rgba(18,63,77,.08);
 }
 .card h2{font-size:15px;margin-bottom:12px;color:#0e5a6b;display:flex;align-items:center;gap:6px}
-label{display:block;font-size:13px;color:var(--dim);margin-bottom:10px}
-label span.t{display:block;margin-bottom:4px}
+label,.field{display:block;font-size:13px;color:var(--dim);margin-bottom:10px}
+label span.t,.field .t{display:block;margin-bottom:4px}
 select,input[type=text],input[type=password],textarea{
   width:100%;background:#f1f8fa;border:1px solid var(--line);
   color:var(--text);border-radius:10px;padding:9px 12px;font-size:14px;
@@ -126,6 +126,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 .btn.small{padding:9px 14px;font-size:13px}
 .row{display:flex;gap:10px}
 .row .btn{flex:1}
+.row.in-label{align-items:center}
+.row.in-label input,.row.in-label select{flex:1;min-width:0}
+.row.in-label .btn{flex:0 0 auto}
 
 /* ---------- 聊天区 ---------- */
 .chat{display:flex;flex-direction:column;height:calc(100vh - 168px);min-height:480px}
@@ -254,9 +257,16 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
       <label><span class="t">API Key（仅存于你浏览器本地）</span>
         <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
       </label>
-      <label><span class="t">模型名称</span>
-        <input id="modelName" type="text" placeholder="deepseek-v4-pro" autocomplete="off" spellcheck="false">
-      </label>
+      <div class="field">
+        <span class="t">模型名称</span>
+        <div class="row in-label">
+          <select id="modelSel"></select>
+          <button type="button" class="btn small primary" id="fetchModelsBtn">获取列表</button>
+        </div>
+        <input id="modelName" type="text" list="modelDatalist" placeholder="输入自定义模型名…" autocomplete="off" spellcheck="false" hidden>
+        <datalist id="modelDatalist"></datalist>
+        <p class="hint" id="modelHint"></p>
+      </div>
       <label><span class="t">系统提示词（人设，可选）</span>
         <textarea id="sysPrompt" rows="3" placeholder="留空使用默认人设"></textarea>
       </label>
@@ -586,9 +596,167 @@ const PRESETS = {
 $("preset").addEventListener("change", () => {
   const p = PRESETS[$("preset").value];
   if (!p) return;
+  // 预设仅作默认推荐：自动填充地址与推荐模型，可用列表以「获取列表」结果为准
+  fetchedModels = [];
   $("baseUrl").value = p.base;
   $("modelName").value = p.model;
+  renderModelDatalist();
+  renderModelOptions();
+  $("modelHint").textContent = "";
   switchConversation();
+  // 已填 API Key 时自动获取该服务商的可用模型列表（失败仅轻提示，不影响手动使用）
+  if ($("apiKey").value.trim()) fetchModels(false);
+});
+
+/* ==================== 可用模型列表自动获取（GET {base}/models） ==================== */
+const CUSTOM_MODEL_VALUE = "__custom__";
+let fetchedModels = [];
+function renderModelDatalist(){
+  /* 手动输入框的下拉建议：预设推荐 + 已获取列表 */
+  const dl = $("modelDatalist");
+  dl.innerHTML = "";
+  const seen = new Set();
+  Object.values(PRESETS).forEach(p => {
+    if (p.model && !seen.has(p.model)){
+      seen.add(p.model);
+      const o = document.createElement("option");
+      o.value = p.model;
+      o.textContent = p.model + "（预设推荐）";
+      dl.appendChild(o);
+    }
+  });
+  (fetchedModels || []).forEach(m => {
+    const id = (m && m.id) || "";
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const o = document.createElement("option");
+    o.value = id;
+    o.textContent = id + (m.owned_by ? "（" + m.owned_by + "）" : "");
+    dl.appendChild(o);
+  });
+}
+function renderModelOptions(){
+  /* 主下拉框：接口返回的可用模型 + 预设推荐（默认推荐）+ 自定义输入 */
+  const sel = $("modelSel");
+  sel.innerHTML = "";
+  const g1 = document.createElement("optgroup");
+  g1.label = fetchedModels.length
+    ? ("可用模型（接口获取 · " + fetchedModels.length + "）")
+    : "可用模型（点「获取列表」自动拉取）";
+  sel.appendChild(g1);
+  if (fetchedModels.length){
+    fetchedModels.forEach(m => {
+      const o = document.createElement("option");
+      o.value = m.id;
+      o.textContent = m.id + (m.owned_by ? "（" + m.owned_by + "）" : "");
+      o.dataset.fetched = "1";
+      g1.appendChild(o);
+    });
+  } else {
+    const o = document.createElement("option");
+    o.value = "";
+    o.textContent = "尚未获取";
+    o.disabled = true;
+    g1.appendChild(o);
+  }
+  const g2 = document.createElement("optgroup");
+  g2.label = "预设推荐（默认）";
+  sel.appendChild(g2);
+  Object.values(PRESETS).forEach(p => {
+    const o = document.createElement("option");
+    o.value = p.model;
+    o.textContent = p.model + "（预设推荐）";
+    g2.appendChild(o);
+  });
+  const oc = document.createElement("option");
+  oc.value = CUSTOM_MODEL_VALUE;
+  oc.textContent = "自定义模型名…";
+  sel.appendChild(oc);
+  syncModelControls();
+}
+function syncModelControls(){
+  /* #modelName 始终保存当前生效模型名；同步下拉框选中态与手动输入框显隐 */
+  const v = $("modelName").value.trim();
+  const real = Array.from($("modelSel").options).find(o => o.value && o.value !== CUSTOM_MODEL_VALUE && o.value === v);
+  if (real){
+    $("modelSel").value = v;
+    $("modelName").hidden = true;
+    return;
+  }
+  if (v){
+    $("modelSel").value = CUSTOM_MODEL_VALUE;
+    $("modelName").hidden = false;
+    return;
+  }
+  // 空：优先选中第一个接口模型，其次第一个预设推荐
+  const fetched = Array.from($("modelSel").options).find(o => o.dataset && o.dataset.fetched === "1");
+  const preset = Array.from($("modelSel").options).find(o => o.value && o.value !== CUSTOM_MODEL_VALUE);
+  const o = fetched || preset;
+  if (o){
+    $("modelSel").value = o.value;
+    $("modelName").value = o.value;
+    $("modelName").hidden = true;
+  } else {
+    $("modelSel").value = CUSTOM_MODEL_VALUE;
+    $("modelName").hidden = false;
+  }
+}
+$("modelSel").addEventListener("change", () => {
+  if ($("modelSel").value === CUSTOM_MODEL_VALUE){
+    $("modelName").hidden = false;
+    $("modelName").focus();
+  } else if ($("modelSel").value){
+    $("modelName").value = $("modelSel").value;
+    $("modelName").hidden = true;
+  }
+  saveSettingsSilent();
+  switchConversation();
+});
+async function fetchModels(manual){
+  const base = $("baseUrl").value.trim(), key = $("apiKey").value.trim();
+  if (!base || !key){
+    toast("请先填写 Base URL 和 API Key", "err");
+    if (manual) $("baseUrl").focus();
+    return;
+  }
+  const btn = $("fetchModelsBtn");
+  btn.disabled = true;
+  btn.textContent = "获取中…";
+  $("modelHint").textContent = "正在获取可用模型列表…";
+  try{
+    const r = await api("/chat/models", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base_url: base, api_key: key }),
+    });
+    fetchedModels = r["模型"] || [];
+    renderModelDatalist();
+    const prev = $("modelName").value.trim();
+    renderModelOptions();   // 当前为空时会自动选中第一个可用模型
+    if ($("modelName").value.trim() !== prev) switchConversation();
+    $("modelHint").textContent = "已获取 " + fetchedModels.length + " 个可用模型：下拉框第一组可直接选择（预设推荐保留在第二组）";
+    toast("已获取 " + fetchedModels.length + " 个可用模型", "ok");
+  }catch(e){
+    fetchedModels = [];
+    renderModelDatalist();
+    renderModelOptions();
+    $("modelHint").textContent = "获取失败：" + ((e && e.message) || "未知错误") + "（仍可手动输入模型名）";
+    if (manual) reportError(e, "获取模型列表失败");
+    else toast("自动获取模型列表失败：" + ((e && e.message) || "未知错误"), "err");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "获取列表";
+  }
+}
+$("fetchModelsBtn").addEventListener("click", () => fetchModels(true));
+/* Base URL 变更后旧列表已失效：清空待重新获取 */
+$("baseUrl").addEventListener("change", () => {
+  if (fetchedModels.length){
+    fetchedModels = [];
+    renderModelDatalist();
+    renderModelOptions();
+    $("modelHint").textContent = "Base URL 已修改，点「获取列表」刷新可用模型";
+  }
 });
 $("saveBtn").addEventListener("click", saveSettings);
 $("modelName").addEventListener("change", () => { saveSettingsSilent(); switchConversation(); });
@@ -1203,6 +1371,9 @@ $("clearLogBtn").addEventListener("click", async () => {
 
 /* ==================== 初始化 ==================== */
 loadSettings();
+renderModelDatalist();
+renderModelOptions();
+$("modelHint").textContent = "点「获取列表」自动获取该服务商的可用模型；预设推荐已内置，不支持时可选「自定义模型名…」手动输入。";
 loadModels();
 updateLogStatus();
 pollSwitchBanner();
