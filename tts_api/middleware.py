@@ -22,7 +22,7 @@ from .security import (
 # 不占用配额：否则手机端任务轮询 + 切换横幅轮询很容易把音频请求挤成 429，
 # 导致「合成成功但无法播放」。
 RATE_LIMITED_PATHS = (
-    "/tts", "/play", "/chat",
+    "/tts", "/play", "/chat", "/chat/models", "/chat/test",
     "/set_voice", "/set_gpt_weights", "/set_sovits_weights",
     "/feedback",
 )

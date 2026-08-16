@@ -31,7 +31,7 @@ tts_api/
 ├── middleware.py      HTTP 安全中间件
 ├── app.py             FastAPI 应用装配（CORS/静态/中间件/路由/lifespan）
 ├── routers/
-│   ├── system.py      /health /models /config /feedback
+│   ├── system.py      /health /models /config /notice /feedback
 │   ├── models.py      /set_voice /set_gpt_weights /set_sovits_weights /switch_status
 │   ├── tts.py         /tts /task_status /audio /play 与前台首页
 │   └── chat.py        /chat /chat/test /chat/models /persona（测试版）
@@ -64,6 +64,25 @@ tts_api/
 - 各用户页面只显示自己选择的音色，不会因为别人切换而刷新；状态栏会提示
   “服务端当前为 X，提交任务将自动排队切换”；
 - 启用 `SWITCH_AUTH_TOKEN` 时，合成请求不代切音色（防止绕过切换鉴权）。
+
+### 多参考音频（1 主 + N 副，同原控制台推理）
+
+- 前台「高级设置」中可选择 **1 个主参考音频 + 若干副参考音频**（复选框多选），
+  切换音色时默认勾选该音色**除主参考外的全部其余参考**（可手动增删）；
+- **参考音频命名约定：文件名 = 台词文本**（如 `こんにちは.wav`）。
+  前台检测到文件名含日文假名/汉字时，会自动回填「参考音频文本」并识别语言，
+  复刻效果远好于零样本；
+- `POST /tts` / `POST /chat` 传 `aux_ref_audio_paths` 数组，`GET /tts` / `/play`
+  用逗号分隔字符串；服务端校验路径穿越与文件存在性，非法路径直接 400。
+
+## 合成台公告弹窗
+
+- 进入合成台时若 `/notice` 返回非空公告内容，则弹出公告弹窗；已读状态按**内容哈希**
+  保存在本浏览器（localStorage），公告内容变更后会自动重新弹出；
+- 公告内容优先级：**`tts_api/frontend/notice.md`** > 代码内置默认公告
+  （`routers/system.py` 的 `NOTICE_DEFAULT_*`，即使用引导 + 注意事项 + 免责声明指引）；
+- `notice.md` 格式：**首行为标题，空一行后为正文**，正文支持 `[文字](链接)` 语法
+  （链接自动可点击，其余内容纯文本渲染防注入）。
 
 ## AI 对话（测试版）扩展
 

@@ -11,4 +11,4 @@ GPT-SoVITS 语音合成台 API（tts_api 包）
 前台: http://127.0.0.1:9880/   文档: http://127.0.0.1:9880/docs
 """
 
-__version__ = "1.2"
+__version__ = "1.4"

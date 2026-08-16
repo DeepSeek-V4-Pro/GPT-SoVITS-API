@@ -104,6 +104,19 @@ textarea{resize:vertical;line-height:1.7}
 select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.14)}
 .hint{font-size:12px;color:var(--dim);margin:8px 0 0;line-height:1.7}
 
+/* 副参考音频多选框 */
+.aux-box{
+  display:flex;flex-direction:column;gap:1px;max-height:170px;overflow-y:auto;
+  background:#f1f8fa;border:1px solid var(--line);border-radius:10px;padding:6px 10px;
+}
+.aux-box label{
+  display:flex;align-items:flex-start;gap:8px;margin:2px 0;
+  font-size:13px;color:var(--text);line-height:1.45;cursor:pointer;
+}
+.aux-box input[type=checkbox]{margin-top:3px;accent-color:var(--accent);flex:none}
+.aux-box .empty{font-size:12px;color:var(--dim);padding:4px 2px}
+#auxRefHint{margin-top:4px}
+
 /* ---------- 聊天记录保存/导出 ---------- */
 .log-controls{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
 .log-controls .check{
@@ -295,6 +308,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
       <h2>语音音色</h2>
       <label><span class="t">音色</span><select id="voiceSel"></select></label>
       <label><span class="t">参考音频</span><select id="refSel"></select></label>
+      <label><span class="t">副参考音频（可多选，增强复刻效果）</span>
+        <div class="aux-box" id="auxRefBox"></div>
+        <p class="hint" id="auxRefHint"></p>
+      </label>
       <label><span class="t">参考文本（可留空）</span><input id="promptText" type="text"></label>
       <label><span class="t">合成语种</span>
         <select id="textLangSel">
@@ -783,6 +800,7 @@ $("testBtn").addEventListener("click", async () => {
 
 /* ==================== 音色 ==================== */
 let lib = null, loadedPaths = null, serverPaths = null, curRefLang = "auto", autoPersona = "";
+let auxRefs = [];                 // 已勾选的副参考音频路径（随音色切换重置）
 const LANG_LABELS = {
   auto: "自动识别", auto_yue: "自动识别（粤语优先）",
   zh: "中文", en: "英文", ja: "日语", yue: "粤语", ko: "韩语",
@@ -929,6 +947,9 @@ async function fillVoice(idx){
     $("promptText").value = "";
     curRefLang = "auto";
   }
+  // 副参考音频：默认勾选该音色除主参考外的全部其余参考（可手动取消）
+  auxRefs = (v.refs || []).slice(1).map(r => r.path);
+  renderAuxRefs();
   updateTextLangHint();
   await loadVoicePersona(rs.value, v.speaker);
 }
@@ -954,6 +975,44 @@ async function loadVoicePersona(refPath, speaker){
     $("sysHint").textContent = "该音色暂无 persona.txt 默认人设，留空将使用服务器默认人设。";
   }
 }
+/* 副参考音频（多选）：与主参考一起用于音色复刻（引擎零样本文本拼接） */
+function renderAuxRefs(){
+  const box = $("auxRefBox");
+  box.innerHTML = "";
+  const v = lib ? lib.voices[parseInt($("voiceSel").value, 10)] : null;
+  const main = $("refSel").value;
+  const items = (v && v.refs) ? v.refs.filter(r => r.path !== main) : [];
+  const valid = new Set(items.map(r => r.path));
+  auxRefs = auxRefs.filter(p => valid.has(p));
+  if (!items.length){
+    box.innerHTML = '<span class="empty">该音色没有其他参考音频，仅使用主参考音频</span>';
+    $("auxRefHint").textContent = "未选副参考音频（单参考模式）";
+    return;
+  }
+  for (const r of items){
+    const l = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = auxRefs.includes(r.path);
+    cb.addEventListener("change", () => {
+      if (cb.checked){ if (!auxRefs.includes(r.path)) auxRefs.push(r.path); }
+      else auxRefs = auxRefs.filter(p => p !== r.path);
+      updateAuxHint();
+    });
+    l.appendChild(cb);
+    const span = document.createElement("span");
+    span.textContent = r.name;
+    l.appendChild(span);
+    box.appendChild(l);
+  }
+  updateAuxHint();
+}
+function updateAuxHint(){
+  const n = auxRefs.length;
+  $("auxRefHint").textContent = n
+    ? "已选 " + n + " 条副参考音频，与主参考一起用于音色复刻"
+    : "未选副参考音频（仅用主参考，即原单参考模式）";
+}
 $("voiceSel").addEventListener("change", () => {
   const idx = parseInt($("voiceSel").value);
   const v = lib.voices[idx];
@@ -964,13 +1023,20 @@ $("voiceSel").addEventListener("change", () => {
   updateLoadedInfo();
   switchConversation();
 });
-/* 手动切换参考音频时，同步参考音频语种（合成语种「跟随参考音频」的默认值随之更新） */
+/* 手动切换参考音频时，同步参考音频语种（合成语种「跟随参考音频」的默认值随之更新），
+   并按「文件名 = 台词文本」约定自动回填参考文本（与合成台一致） */
 $("refSel").addEventListener("change", () => {
   const v = lib.voices[parseInt($("voiceSel").value)];
   const r = ((v && v.refs) || []).find(x => x.path === $("refSel").value);
   curRefLang = r ? (r.lang_hint || "auto") : "auto";
+  const name = r ? String(r.name || "") : "";
+  $("promptText").value = /[\u3040-\u30ff\u4e00-\u9fff]/.test(name) ? stem(name) : "";
   updateTextLangHint();
   loadVoicePersona($("refSel").value, v ? v.speaker : "");
+  // 主参考换掉后，原主参考若在副参考勾选里则移除，避免重复
+  const main = $("refSel").value;
+  if (auxRefs.includes(main)) auxRefs = auxRefs.filter(p => p !== main);
+  renderAuxRefs();
 });
 function updateLoadedInfo(){
   if (loadedPaths){
@@ -1168,6 +1234,7 @@ async function send(){
         history: chatHistory,
         memory_hints: memoryHints.length ? memoryHints : undefined,
         ref_audio_path: $("refSel").value || undefined,
+        aux_ref_audio_paths: auxRefs.length ? auxRefs.filter(p => p && p !== $("refSel").value) : undefined,
         prompt_text: $("promptText").value.trim(),
         prompt_lang: curRefLang || "auto",
         text_lang: textLangSel.value || undefined,

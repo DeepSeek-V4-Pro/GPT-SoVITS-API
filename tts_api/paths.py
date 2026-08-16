@@ -76,6 +76,10 @@ STUDIO_ASSETS_DIR = os.path.join(FRONTEND_DIR, "assets")
 STUDIO_HTML = os.path.join(FRONTEND_DIR, "index.html")
 CHAT_HTML = os.path.join(FRONTEND_DIR, "chat.html")
 
+# 公告内容覆盖文件（可选）：创建本文件后，合成台公告弹窗显示其内容
+# （首行为标题，空一行后为正文，支持 [文字](链接) 语法）；不创建则用代码内默认公告。
+NOTICE_FILE = os.path.join(FRONTEND_DIR, "notice.md")
+
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(FEEDBACK_DIR, exist_ok=True)
 os.makedirs(TEMP_AUDIO_DIR, exist_ok=True)

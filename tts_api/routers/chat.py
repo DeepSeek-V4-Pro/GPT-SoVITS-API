@@ -172,6 +172,7 @@ async def chat(body: ChatRequest, request: Request):
         "text": tts_text,
         "text_lang": body.text_lang or body.prompt_lang or "auto",
         "ref_audio_path": body.ref_audio_path or config.DEFAULT_REF_AUDIO_PATH,
+        "aux_ref_audio_paths": body.aux_ref_audio_paths or None,
         "prompt_text": body.prompt_text or config.DEFAULT_PROMPT_TEXT,
         "prompt_lang": body.prompt_lang or config.DEFAULT_PROMPT_LANG,
         "gpt_path": (body.gpt_path or "").strip(),

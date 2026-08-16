@@ -101,6 +101,7 @@ class ChatRequest(BaseModel):
     max_tokens: int = Field(default=config.CHAT_MAX_TOKENS, ge=64, le=4096, description="模型回复最大 token 数")
     temperature: float = Field(default=0.8, ge=0, le=2, description="采样温度")
     ref_audio_path: str = Field(default=config.DEFAULT_REF_AUDIO_PATH, description="参考音频路径（来自 /models）")
+    aux_ref_audio_paths: list = Field(default=None, description="辅助参考音频路径列表（可选，与主参考一起用于音色复刻）")
     prompt_text: str = Field(default=config.DEFAULT_PROMPT_TEXT, description="参考音频对应文本")
     prompt_lang: str = Field(default=config.DEFAULT_PROMPT_LANG, description="参考音频语言")
     text_lang: str = Field(default="", description="合成文本的语言代码（auto/ja/zh/en/yue/ko 等），留空时默认使用参考音频语言 prompt_lang")

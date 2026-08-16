@@ -73,6 +73,9 @@ async def _synthesize(req: dict, holder: dict):
             sr = None
             for sr, chunk in tts_gen:
                 all_audio.append(chunk)
+            if not all_audio or sr is None:
+                # 文本切分后为空等情况下引擎可能不产出任何音频
+                raise ValueError("引擎未产出音频数据，请检查文本与切分参数")
             audio_data = np.concatenate(all_audio, axis=-1) if len(all_audio) > 1 else all_audio[0]
             return sr, audio_data
 
@@ -112,11 +115,11 @@ async def handle_tts(req: dict):
             err = resolve_streaming_params(req)
             if err:
                 return err
-            mime = media_type if media_type != "aac" else "aac"
+            mime = media_type
             return StreamingResponse(
                 _stream_audio_generator(req),
                 media_type=f"audio/{mime}",
-                headers={"Content-Disposition": "attachment; filename=tts_output.wav",
+                headers={"Content-Disposition": f"attachment; filename=tts_output.{media_type}",
                          "Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         result, err = await generate_audio_data(req)
@@ -125,7 +128,7 @@ async def handle_tts(req: dict):
         sr, audio_data = result
         audio_bytes = pack_audio(BytesIO(), audio_data, sr, media_type).getvalue()
         return Response(audio_bytes, media_type=f"audio/{media_type}",
-                        headers={"Content-Disposition": "attachment; filename=tts_output.wav"})
+                        headers={"Content-Disposition": f"attachment; filename=tts_output.{media_type}"})
     finally:
         elapsed = time.time() - t0
         text = req.get("text", "")[:60]

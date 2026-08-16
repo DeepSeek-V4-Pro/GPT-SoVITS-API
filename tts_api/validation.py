@@ -6,6 +6,7 @@
 - error_response: 统一的 {"错误": ...} JSON 错误响应
 """
 
+import os
 import shutil
 
 from fastapi.responses import JSONResponse
@@ -32,15 +33,25 @@ def validate_tts_params(req: dict):
         return error_response(400, "缺少参数: ref_audio_path")
     if not check_path_traversal(req["ref_audio_path"]):
         return error_response(400, "非法的 ref_audio_path")
+    if not os.path.isfile(req["ref_audio_path"]):
+        return error_response(400, f"参考音频文件不存在: {req['ref_audio_path']}")
     for key in ("gpt_path", "sovits_path"):
         p = (req.get(key) or "").strip()
         if p and not is_allowed_model_path(p):
             return error_response(400, f"非法的模型路径: {key}")
     aux_paths = req.get("aux_ref_audio_paths")
     if aux_paths:
-        for p in aux_paths:
+        if not isinstance(aux_paths, list):
+            return error_response(400, "aux_ref_audio_paths 必须是数组")
+        for i, p in enumerate(aux_paths):
+            if not isinstance(p, str) or not p.strip():
+                return error_response(400, "非法的辅助音频路径")
+            p = p.strip()
+            aux_paths[i] = p   # 去空格后的路径写回，保证引擎收到的是校验过的路径
             if not check_path_traversal(p):
                 return error_response(400, f"非法的辅助音频路径: {p}")
+            if not os.path.isfile(p):
+                return error_response(400, f"辅助音频文件不存在: {p}")
     if not req.get("text"):
         return error_response(400, "缺少参数: text")
     if len(req["text"]) > config.MAX_TEXT_LENGTH:

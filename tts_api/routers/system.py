@@ -4,6 +4,7 @@
 GET  /health    服务健康检查
 GET  /models    扫描并列出全部可用音色、模型与参考音频
 GET  /config    查看当前模型配置
+GET  /notice    获取合成台公告（可被 frontend/notice.md 覆盖）
 POST /feedback  提交意见反馈
 """
 
@@ -22,6 +23,53 @@ from ..security import _get_client_ip
 from ..validation import error_response
 
 router = APIRouter()
+
+# ============================================================
+# 合成台默认公告：使用引导 + 注意事项 + 免责声明指引。
+# 部署方如需自定义，创建 tts_api/frontend/notice.md 即可覆盖
+# （首行为标题，空一行后为正文，支持 [文字](链接) 语法）。
+# ============================================================
+NOTICE_DEFAULT_TITLE = "欢迎使用语音合成台"
+NOTICE_DEFAULT_CONTENT = (
+    "【快速上手】\n"
+    "1. 在左侧「选择音色」下拉框选中想要的音色，点击「加载音色」；\n"
+    "2. 在右侧输入要朗读的文本（建议 5~500 字），选择文本语言，点击「生成语音」；\n"
+    "3. 生成后可在页面内直接试听或下载；同一浏览器内保留最近 12 条合成记录。\n"
+    "\n"
+    "【参考音频】\n"
+    "· 参考音频决定复刻的音色与语气：文件名即台词文本时（如「こんにちは.wav」）\n"
+    "  会自动回填参考文本，效果最佳；\n"
+    "· 「高级设置」中可勾选多条副参考音频，与主参考一起参与音色复刻；\n"
+    "· 切换音色时会默认选中该音色的全部参考音频，可手动调整。\n"
+    "\n"
+    "【注意事项】\n"
+    "· 请勿合成违法、色情、诈骗或冒充他人身份的内容；\n"
+    "· 生成的音频在服务器仅保留 1 小时，请及时下载；\n"
+    "· 多人共用时音色切换会自动排队，排队期间任务会等待，请勿重复提交；\n"
+    "· 合成内容由使用者自行负责。\n"
+    "\n"
+    "详细使用条款请查看[免责声明](/disclaimer)。"
+)
+
+
+@router.get("/notice", summary="获取合成台公告",
+            description="返回合成台首页公告弹窗的内容。优先读取 frontend/notice.md "
+                        "（首行为标题，空一行后为正文，支持 [文字](链接) 语法）；"
+                        "文件不存在或内容为空时返回内置默认公告。",
+            response_description="{title, content}，content 为空表示无需展示公告", tags=["系统"])
+async def get_notice():
+    title, content = NOTICE_DEFAULT_TITLE, NOTICE_DEFAULT_CONTENT
+    if os.path.isfile(paths.NOTICE_FILE):
+        try:
+            with open(paths.NOTICE_FILE, encoding="utf-8") as f:
+                raw = f.read().strip()
+            if raw:
+                lines = raw.splitlines()
+                title = lines[0].strip()
+                content = "\n".join(lines[1:]).strip() or title
+        except OSError:
+            logger.exception("读取公告文件失败: %s", paths.NOTICE_FILE)
+    return {"title": title, "content": content}
 
 
 @router.get("/health", summary="服务健康检查", response_description="返回服务运行状态和当前模型配置", tags=["系统"])

@@ -80,7 +80,8 @@ async def tts_get(
         "overlap_length": int(overlap_length),
         "min_chunk_length": int(min_chunk_length),
         "aux_ref_audio_paths":
-            aux_ref_audio_paths.split(",") if aux_ref_audio_paths else None,
+            [p.strip() for p in aux_ref_audio_paths.split(",") if p.strip()]
+            if aux_ref_audio_paths else None,
         "gpt_path": gpt_path,
         "sovits_path": sovits_path,
     }
@@ -108,12 +109,12 @@ async def tts_post(req: Request, body: TTSRequest):
             err = resolve_streaming_params(req_dict)
             if err:
                 return err
-            mime = body.media_type if body.media_type != "aac" else "aac"
+            mime = body.media_type
             return StreamingResponse(
                 _stream_audio_generator(req_dict),
                 media_type=f"audio/{mime}",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
-                         "Content-Disposition": "attachment; filename=tts_output.wav"},
+                         "Content-Disposition": f"attachment; filename=tts_output.{mime}"},
             )
         # 非流式: 先校验，再入队异步合成，立即返回 202 + 排队信息
         if not models_ready():
@@ -210,7 +211,8 @@ async def tts_play(request: Request,
         "overlap_length": int(overlap_length),
         "min_chunk_length": int(min_chunk_length),
         "aux_ref_audio_paths":
-            aux_ref_audio_paths.split(",") if aux_ref_audio_paths else None,
+            [p.strip() for p in aux_ref_audio_paths.split(",") if p.strip()]
+            if aux_ref_audio_paths else None,
         "gpt_path": gpt_path,
         "sovits_path": sovits_path,
     }
@@ -224,7 +226,7 @@ async def tts_play(request: Request,
         err = resolve_streaming_params(req)
         if err:
             return err
-        mime = media_type if media_type != "aac" else "aac"
+        mime = media_type
         return StreamingResponse(
             _stream_audio_generator(req),
             media_type=f"audio/{mime}",

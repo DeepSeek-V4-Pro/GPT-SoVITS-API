@@ -109,6 +109,19 @@ input[type=number]::-webkit-inner-spin-button{opacity:1}
 
 .hint{font-size:12px;color:var(--dim);margin:-6px 0 12px;min-height:16px}
 
+/* 副参考音频多选框 */
+.aux-box{
+  display:flex;flex-direction:column;gap:1px;max-height:190px;overflow-y:auto;
+  background:#f1f8fa;border:1px solid var(--line);border-radius:10px;padding:6px 10px;
+}
+.aux-box label{
+  display:flex;align-items:flex-start;gap:8px;margin:2px 0;
+  font-size:13px;color:var(--text);line-height:1.45;cursor:pointer;
+}
+.aux-box input[type=checkbox]{margin-top:3px;accent-color:var(--accent);flex:none}
+.aux-box .empty{font-size:12px;color:var(--dim);padding:4px 2px}
+#auxRefHint{margin-top:4px}
+
 /* ---------- 按钮 ---------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -220,6 +233,8 @@ details.adv[open] summary{margin-bottom:12px;color:var(--accent)}
 }
 .modal-close:hover{color:var(--text);background:#e2f0f2}
 .modal label{margin-bottom:14px}
+.modal-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:16px}
+.modal-body{font-size:13.5px;line-height:1.9;color:var(--text);white-space:pre-line;max-height:52vh;overflow-y:auto}
 
 /* ---------- 报错弹窗 ---------- */
 .err-mask{
@@ -302,8 +317,12 @@ footer a:hover{color:var(--accent2)}
       <label><span class="t">GPT 模型</span><select id="gptSel"></select></label>
       <label><span class="t">SoVITS 模型</span><select id="sovitsSel"></select></label>
       <label><span class="t">参考音频（音色来源）</span><select id="refSel"></select></label>
+      <label><span class="t">副参考音频（可多选，增强复刻效果）</span>
+        <div class="aux-box" id="auxRefBox"></div>
+        <p class="hint" id="auxRefHint"></p>
+      </label>
       <label><span class="t">参考音频文本（留空 = 零样本合成）</span>
-        <input type="text" id="promptText" placeholder="例如：この命ご主人様のために捧げますね">
+        <input type="text" id="promptText" placeholder="例如：こんにちは">
       </label>
       <label><span class="t">参考音频语言</span><select id="promptLang"></select></label>
       <button id="refreshBtn" class="btn ghost">刷新模型列表</button>
@@ -381,6 +400,22 @@ footer a:hover{color:var(--accent2)}
   </div>
 </div>
 
+<!-- 公告弹窗：进入合成台时展示（内容来自 /notice，可被 frontend/notice.md 覆盖；
+     已读状态按内容哈希保存在本浏览器，公告内容变更后会自动重新弹出） -->
+<div class="modal-mask" id="noticeMask" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="noticeTitle">公告</span>
+      <button type="button" class="modal-close" id="noticeClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body" id="noticeBody"></div>
+    <div class="modal-actions">
+      <a class="btn ghost" id="noticeDisclaimer" href="/disclaimer" target="_blank" rel="noopener">查看免责声明</a>
+      <button type="button" id="noticeOk" class="btn primary">我知道了</button>
+    </div>
+  </div>
+</div>
+
 <!-- 报错弹窗：各种错误统一提示（图片下方红色粗体展示错误码） -->
 <div class="err-mask" id="errMask" hidden>
   <div class="err-box" role="alertdialog" aria-modal="true" aria-labelledby="errCode">
@@ -404,6 +439,7 @@ let busy = false;
 let applying = false;           // 正在提交/等待音色切换
 let history = [];
 const HISTORY_MAX = 12;
+let auxRefs = [];               // 已勾选的副参考音频路径（随音色切换重置）
 
 const LANG_LABELS = {
   auto: "自动识别", auto_yue: "自动识别（粤语优先）",
@@ -561,6 +597,7 @@ function populateLangs(langs){
 /* ==================== 模型列表 ==================== */
 async function loadModels(){
   lib = await api("/models");
+  const prevIdx = parseInt(voiceSel.value, 10);   // 刷新前记住当前音色（首次加载时为 NaN）
   // 音色下拉
   voiceSel.innerHTML = "";
   if (!lib.voices.length){
@@ -585,6 +622,14 @@ async function loadModels(){
     m => m.name + "（" + m.size_mb + "MB）", m => m.path);
   fillSelect(refSel, buildRefGroups(lib.ref_audios),
     r => r.name, r => r.path);
+  // 刷新后恢复之前的音色选择：避免副参考勾选被清空、下拉框全部重置为第一项
+  if (lib.voices.length){
+    const idx = (!isNaN(prevIdx) && lib.voices[prevIdx]) ? prevIdx : 0;
+    voiceSel.value = String(idx);
+    fillVoice(idx);
+  } else {
+    renderAuxRefs();
+  }
 
   // 服务端当前加载的模型
   const cur = lib.current || {};
@@ -611,9 +656,59 @@ function fillVoice(idx){
     promptText.value = r.sentence_like ? stem(r.name) : "";
     selectPath(promptLang, r.lang_hint || "auto");
   }
+  // 副参考音频：默认勾选该音色除主参考外的全部其余参考（可手动取消）
+  auxRefs = v.refs.slice(1).map(r => r.path);
+  renderAuxRefs();
+  // 高级选项已回到该音色默认值：同步「模型有改动」标记（刷新列表/初始化后不失准）
+  if (loadedPaths){
+    modelDirty = (gptSel.value !== loadedPaths.gpt && basename(gptSel.value) !== basename(loadedPaths.gpt))
+              || (sovitsSel.value !== loadedPaths.sovits && basename(sovitsSel.value) !== basename(loadedPaths.sovits));
+  }
   $("voiceHint").textContent = v.refs.length
     ? "GPT " + v.gpt.length + " 个 · SoVITS " + v.sovits.length + " 个 · 参考音频 " + v.refs.length + " 条"
     : "GPT " + v.gpt.length + " 个 · SoVITS " + v.sovits.length + " 个 · 无配套参考音频（沿用当前参考音频）";
+}
+
+/* ==================== 副参考音频（多选） ==================== */
+/* 设计同原控制台推理：1 个主参考音频 + 若干个副参考音频（零样本文本），
+   副参考一并参与音色复刻（引擎自动拼接 refer_spec）。 */
+function renderAuxRefs(){
+  const box = $("auxRefBox");
+  box.innerHTML = "";
+  const v = lib ? lib.voices[parseInt(voiceSel.value, 10)] : null;
+  const main = refSel.value;
+  const items = (v && v.refs) ? v.refs.filter(r => r.path !== main) : [];
+  // 只保留当前音色仍存在的勾选（音色切换/列表刷新后自动清理失效项）
+  const valid = new Set(items.map(r => r.path));
+  auxRefs = auxRefs.filter(p => valid.has(p));
+  if (!items.length){
+    box.innerHTML = '<span class="empty">该音色没有其他参考音频，仅使用主参考音频</span>';
+    $("auxRefHint").textContent = "未选副参考音频（单参考模式）";
+    return;
+  }
+  for (const r of items){
+    const l = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = auxRefs.includes(r.path);
+    cb.addEventListener("change", () => {
+      if (cb.checked){ if (!auxRefs.includes(r.path)) auxRefs.push(r.path); }
+      else auxRefs = auxRefs.filter(p => p !== r.path);
+      updateAuxHint();
+    });
+    l.appendChild(cb);
+    const span = document.createElement("span");
+    span.textContent = r.name;
+    l.appendChild(span);
+    box.appendChild(l);
+  }
+  updateAuxHint();
+}
+function updateAuxHint(){
+  const n = auxRefs.length;
+  $("auxRefHint").textContent = n
+    ? "已选 " + n + " 条副参考音频，与主参考一起用于音色复刻（可继续勾选/取消）"
+    : "未选副参考音频（仅用主参考，即原单参考模式）";
 }
 
 /* ==================== 音色切换（异步排队 + 全局横幅） ==================== */
@@ -767,18 +862,20 @@ async function synth(){
   if (modelDirty){ toast("模型有改动，请先点击「加载音色」", "err"); return; }
   if (!loadedPaths){ toast("还没有可用的模型，请先选择音色", "err"); return; }
   if (!refSel.value){ toast("请选择参考音频", "err"); return; }
+  const seedV = parseInt(seedEl.value, 10);
 
   const body = {
     text: text,
     text_lang: textLang.value || "auto",
     ref_audio_path: refSel.value,
+    aux_ref_audio_paths: auxRefs.filter(p => p && p !== refSel.value),
     prompt_lang: promptLang.value || "auto",
     prompt_text: promptText.value.trim(),
     top_k: parseInt(topK.value) || 15,
     top_p: clamp(topP.value, 0, 1, 1),
     temperature: clamp(temp.value, 0.1, 2, 0.6),
     speed_factor: clamp(speed.value, 0.5, 1.5, 1),
-    seed: parseInt(seedEl.value) || -1,
+    seed: isNaN(seedV) ? -1 : seedV,
     media_type: mediaType.value,
     streaming_mode: 0,
     gpt_path: gptSel.value,
@@ -1069,14 +1166,15 @@ async function init(){
 
   // 选择音色：优先上次会话保存的，其次服务端当前加载的，最后第一个
   let idx = -1;
-  const saved = localStorage.getItem("studio.voice");
+  let saved = null;
+  try { saved = localStorage.getItem("studio.voice"); } catch (_) {}
   if (saved !== null && lib && lib.voices[+saved]) idx = +saved;
   if (idx < 0 && loadedPaths) idx = findVoiceIdx(loadedPaths.gpt, loadedPaths.sovits);
   if (idx < 0 && lib && lib.voices.length) idx = 0;
 
   if (idx >= 0){
+    voiceSel.value = String(idx);   // 先设置下拉选中，再填充（副参考复选框按当前音色渲染）
     fillVoice(idx);
-    voiceSel.value = String(idx);
     const v0 = lib.voices[idx];
     const myVoice = (v0 && v0.gpt.length && v0.sovits.length)
       ? { gpt: v0.gpt[0].path, sovits: v0.sovits[0].path } : null;
@@ -1084,6 +1182,7 @@ async function init(){
       (myVoice.gpt === loadedPaths.gpt || basename(myVoice.gpt) === basename(loadedPaths.gpt)) &&
       (myVoice.sovits === loadedPaths.sovits || basename(myVoice.sovits) === basename(loadedPaths.sovits));
     loadedPaths = myVoice; // 界面固定显示用户自己的音色，不跟随服务端被别人的切换
+    modelDirty = false;    // 高级选项与本界面音色一致
     if (!sameAsLoaded) applyVoice(); // 自动把保存的音色加载到服务端
   }
 
@@ -1092,6 +1191,7 @@ async function init(){
   setInterval(healthTick, 15000);
   pollSwitchBanner();
   setInterval(pollSwitchBanner, 4000);
+  loadNotice();
 }
 
 /* ==================== 事件 ==================== */
@@ -1110,6 +1210,10 @@ refSel.addEventListener("change", () => {
   const text = o ? o.textContent : "";
   const name = text.split("/").pop().trim();
   promptText.value = /[\u3040-\u30ff\u4e00-\u9fff]/.test(name) ? stem(name) : "";
+  // 主参考换掉后，原主参考若在副参考勾选里则移除，避免重复
+  const main = refSel.value;
+  if (auxRefs.includes(main)) auxRefs = auxRefs.filter(p => p !== main);
+  renderAuxRefs();
 });
 applyBtn.addEventListener("click", applyVoice);
 genBtn.addEventListener("click", synth);
@@ -1123,6 +1227,59 @@ $("refreshBtn").addEventListener("click", async () => {
 });
 textEl.addEventListener("input", () => { $("charCount").textContent = textEl.value.length; });
 speed.addEventListener("input", () => { $("speedVal").textContent = parseFloat(speed.value).toFixed(2); });
+
+/* ==================== 公告弹窗 ==================== */
+const NOTICE_ACK_KEY = "studio.notice.ack";
+let noticeKey = null;               // 当前展示公告的内容哈希（确认已读时写入）
+function noticeHash(s){
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return String(h);
+}
+/* 把 [文字](链接) 渲染为可点击链接，其余内容一律按纯文本输出（防注入）；
+   链接仅允许 http/https 或站内相对地址，javascript:/data: 等一律按纯文本展示 */
+function renderNoticeBody(text){
+  const box = $("noticeBody");
+  box.innerHTML = "";
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last = 0, m;
+  while ((m = re.exec(text))){
+    if (m.index > last) box.appendChild(document.createTextNode(text.slice(last, m.index)));
+    const url = m[2];
+    if (/^(https?:\/\/|\/)/i.test(url)){
+      const a = document.createElement("a");
+      a.textContent = m[1];
+      a.href = url;
+      if (/^https?:\/\//i.test(url)){ a.target = "_blank"; a.rel = "noopener"; }
+      box.appendChild(a);
+    } else {
+      box.appendChild(document.createTextNode(m[0]));   // 危险协议链接按纯文本渲染
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) box.appendChild(document.createTextNode(text.slice(last)));
+}
+async function loadNotice(){
+  try{
+    const n = await api("/notice");
+    const content = (n && n.content) ? String(n.content).trim() : "";
+    if (!content) return;                      // 无公告内容：不弹窗
+    noticeKey = noticeHash((n.title || "") + "\n" + content);
+    let ack = null;
+    try { ack = localStorage.getItem(NOTICE_ACK_KEY); } catch (_) {}
+    if (ack === noticeKey) return;             // 已读过同一条公告
+    $("noticeTitle").textContent = ((n.title || "").trim() || "公告");
+    renderNoticeBody(content);
+    $("noticeMask").hidden = false;
+  }catch(_){ /* 服务离线或接口异常时静默跳过 */ }
+}
+$("noticeOk").addEventListener("click", () => {
+  if (noticeKey){ try { localStorage.setItem(NOTICE_ACK_KEY, noticeKey); } catch (_) {} }
+  $("noticeMask").hidden = true;
+});
+$("noticeClose").addEventListener("click", () => { $("noticeMask").hidden = true; });
+$("noticeMask").addEventListener("click", (e) => { if (e.target === $("noticeMask")) $("noticeMask").hidden = true; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("noticeMask").hidden) $("noticeMask").hidden = true; });
 
 /* ==================== 意见反馈 ==================== */
 const fbMask = $("fbMask"), fbText = $("fbText"), fbContact = $("fbContact"), fbSubmit = $("fbSubmit");

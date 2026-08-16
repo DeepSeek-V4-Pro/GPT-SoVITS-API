@@ -8,7 +8,7 @@ FastAPI 文档内容与主题
 """
 
 API_TITLE = "GPT-SoVITS 语音合成 API（语音合成台）"
-API_VERSION = "1.3"
+API_VERSION = "1.4"
 SWAGGER_CSS_URL = "/assets/swagger_theme.css"
 
 CONTACT = {
@@ -70,6 +70,7 @@ API_DESCRIPTION = (
     "| GET  | `/switch_status` | 音色切换状态：当前音色 / 待切换（操作人、剩余任务、预计秒数、阶段） |\n"
     "| GET  | `/health` | 服务健康检查与当前模型 |\n"
     "| GET  | `/config` | 查看模型配置 |\n"
+    "| GET  | `/notice` | 合成台公告内容（可创建 `tts_api/frontend/notice.md` 覆盖默认公告：首行为标题、空一行后为正文，支持 `[文字](链接)`） |\n"
     "| POST | `/feedback` | 提交意见反馈（前台页脚「意见反馈」也可提交） |\n\n"
     "---\n\n"
     "## 通用参数\n\n"
@@ -80,6 +81,7 @@ API_DESCRIPTION = (
     "| `speed_factor` | 语速倍数，建议 **0.8~1.5**，超出范围音质可能下降 |\n"
     "| `media_type` | 输出音频格式：`wav` / `raw` / `ogg` / `aac`（`aac` 需服务端安装 ffmpeg） |\n"
     "| `ref_audio_path` | 请使用 `/models` 返回的路径（服务端会校验，路径穿越一律拒绝） |\n"
+    "| `aux_ref_audio_paths` | （可选）副参考音频路径列表（GET 用逗号分隔）；与主参考一起用于音色复刻，`POST /tts` / `POST /chat` 传 JSON 数组 |\n"
     "| `prompt_text` | 参考音频对应文本；留空按零样本合成，填写准确文本效果更好 |\n"
     "| `gpt_path` / `sovits_path` | （可选）指定本次合成使用的模型路径（来自 `/models`）；多人共用时自动排队切换，不影响他人界面 |\n"
     "| `streaming_mode` | 流式模式，见下方说明 |\n\n"
