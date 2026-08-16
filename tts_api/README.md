@@ -20,7 +20,7 @@ tts_api/
 ├── logging_setup.py   日志（控制台 + 按天滚动文件）
 ├── docs.py            /docs 页面 Markdown 描述与 Swagger 样式
 ├── security.py        限流器、SSRF 防护、路径/文本校验、告警、IP 工具
-├── llm.py             AI 对话基础（LLM 调用、persona、回复清洗）
+├── llm.py             AI 对话基础（LLM 调用、persona 多格式渲染、回复清洗）
 ├── voice_library.py   音色库扫描与模型路径校验
 ├── engine.py          TTS 引擎初始化、音色代际守卫（合成/切换协调）、并发信号量
 ├── audio.py           音频编码（wav/ogg/aac/raw、流式 WAV 头）
@@ -86,6 +86,10 @@ tts_api/
 
 ## AI 对话（测试版）扩展
 
+- 音色人设：每个音色目录可放 `persona.toml` / `persona.json` / 旧版 `persona.txt`（按此优先级），
+  `system_prompt` 留空时自动加载并跟随音色切换；结构化格式按
+  `[personality] / [behavior] / [chat] / [output]` 渲染为带严格分区的系统提示词，空字段分区省略
+  （详见 `llm.py` 的 `render_persona` 与 `voices/README.md`）；
 - 上下文：最多携带最近 **20 轮**对话（每条截断 1000 字符）；
 - 聊天记录：用户可开启「保存聊天记录到本浏览器」（IndexedDB，纯本地不上传），
   **按「音色 + 模型名」分区**保存，切换音色/模型时自动加载对应记录；

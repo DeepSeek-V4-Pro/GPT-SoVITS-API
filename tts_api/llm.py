@@ -1,7 +1,8 @@
 """
 AI 对话基础组件（测试版）
 =========================
-- load_voice_persona: 读取音色目录下的 persona.txt 默认人设
+- load_voice_persona: 读取音色目录下的默认人设（persona.toml / persona.json / 旧版 persona.txt）
+- render_persona: 把结构化人设字段渲染为带严格分区的系统提示词
 - _build_chat_url / _call_llm_sync: OpenAI 兼容接口同步调用（含 SSRF 防护）
 - _build_models_url / _fetch_models_sync: 自动获取可用模型列表（GET /models，含 SSRF 防护）
 - truncate_for_tts / clean_reply_for_tts: 回复文本转 TTS 前的清洗
@@ -11,6 +12,7 @@ import json
 import os
 import re
 import unicodedata
+from collections.abc import Mapping
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, build_opener
 
@@ -18,21 +20,151 @@ from . import config
 from .logging_setup import logger
 from .security import _SafeRedirectHandler
 
-# 音色目录下的默认人设文件名（如 voices/我的音色/persona.txt）
-PERSONA_FILE = "persona.txt"
+# 音色目录下的默认人设文件，按优先级尝试（如 voices/Salt/persona.toml）
+PERSONA_FILES = ("persona.toml", "persona.json", "persona.txt")
+
+# 系统提示词区块分隔线
+_SECTION_SEP = "=" * 60
+
+
+def _load_toml_loads():
+    """按优先级返回可用的 TOML 解析函数（loads）；均不可用时返回 None。
+
+    兼容: Python 3.11+ 标准库 tomllib；老版本回退到 tomli / tomlkit。
+    """
+    try:
+        import tomllib
+        return tomllib.loads
+    except ImportError:
+        pass
+    try:
+        import tomli
+        return tomli.loads
+    except ImportError:
+        pass
+    try:
+        import tomlkit
+        return tomlkit.parse
+    except ImportError:
+        pass
+    return None
+
+
+def _as_dict(v):
+    """把 dict / Mapping（如 tomlkit 的 TOMLDocument）统一转成普通 dict。"""
+    if isinstance(v, dict):
+        return v
+    if isinstance(v, Mapping):
+        return dict(v)
+    return {}
+
+
+def _parse_persona_file(path: str):
+    """解析 persona.toml / persona.json，返回字段字典；解析失败返回 None。"""
+    ext = os.path.splitext(path)[1].lower()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return None
+    try:
+        if ext == ".json":
+            data = json.loads(text)
+        elif ext == ".toml":
+            loads = _load_toml_loads()
+            if loads is None:
+                logger.warning("未找到 tomllib/tomli/tomlkit，无法解析人设: %s", path)
+                return None
+            data = loads(text)
+        else:
+            return None
+    except Exception as e:
+        logger.warning("人设文件解析失败（%s）: %s", path, str(e)[:120])
+        return None
+    return _as_dict(data)
+
+
+def render_persona(data: dict) -> str:
+    """把结构化人设（TOML/JSON 字段）渲染为带严格分区的系统提示词。
+
+    字段说明（对应输出区块）:
+      [personality] name / title / identity / background / character / relationship
+      [behavior]    behavior_style / reply_style
+      [chat]        rules
+      [output]      requirements
+
+    空字段对应的区块整体省略；全部为空时返回空串。
+    """
+    p = _as_dict(data.get("personality"))
+    b = _as_dict(data.get("behavior"))
+    c = _as_dict(data.get("chat"))
+    o = _as_dict(data.get("output"))
+
+    def _t(v):
+        return str(v).strip() if v not in (None, "") else ""
+
+    head = ""
+    name = _t(p.get("name"))
+    title = _t(p.get("title"))
+    if name:
+        head = "你的名字是" + name
+        if title:
+            head += "，" + title
+
+    sections = (
+        ("1. 身份设定", "Personality", _t(p.get("identity"))),
+        ("2. 背景经历", "Background", _t(p.get("background"))),
+        ("3. 性格特征", "Character", _t(p.get("character"))),
+        ("4. 人物关系与称呼", "Relationship", _t(p.get("relationship"))),
+        ("5. 行为准则", "Behavior Style", _t(b.get("behavior_style"))),
+        ("6. 说话风格", "Reply Style", _t(b.get("reply_style"))),
+        ("7. 聊天注意事项", "Chat Rules", _t(c.get("rules"))),
+        ("8. 输出格式要求", "Output Format", _t(o.get("requirements"))),
+    )
+
+    lines = []
+    if head:
+        lines.append(head + "。")
+        lines.append("")
+    for zh, en, body in sections:
+        if not body:
+            continue
+        lines.append(_SECTION_SEP)
+        lines.append(f"【{zh}】{en}".rstrip())
+        lines.append(_SECTION_SEP)
+        if zh == "7. 聊天注意事项":
+            lines.append("在该聊天中的注意事项：")
+            lines.append("通用注意事项：")
+        lines.append(body)
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def load_voice_persona(ref_audio_path: str) -> str:
-    """读取参考音频所在音色目录下的默认人设文件 persona.txt；不存在返回空串。"""
+    """读取参考音频所在音色目录下的默认人设文件，渲染为系统提示词返回。
+
+    按优先级查找 persona.toml → persona.json → 旧版 persona.txt；
+    都不存在或解析失败返回空串（调用方回退到内置默认人设）。
+    """
     if not ref_audio_path:
         return ""
-    try:
-        p = os.path.join(os.path.dirname(os.path.abspath(ref_audio_path)), PERSONA_FILE)
-        if os.path.isfile(p):
-            with open(p, "r", encoding="utf-8") as f:
-                return f.read().strip()
-    except OSError:
-        pass
+    d = os.path.dirname(os.path.abspath(ref_audio_path))
+    for fn in PERSONA_FILES:
+        p = os.path.join(d, fn)
+        if not os.path.isfile(p):
+            continue
+        if fn.endswith(".txt"):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    return f.read().strip()
+            except OSError:
+                return ""
+        data = _parse_persona_file(p)
+        if data is None:
+            continue  # 解析失败时继续尝试下一个文件（如 toml 失败而 json 存在）
+        rendered = render_persona(data)
+        if rendered:
+            return rendered
     return ""
 
 

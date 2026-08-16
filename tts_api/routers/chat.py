@@ -84,15 +84,16 @@ async def chat_models(body: ChatModelsRequest):
 
 
 @router.get("/persona", summary="获取音色默认人设",
-            description="读取参考音频所在音色目录下的 persona.txt 默认人设文件（测试版）。"
+            description="读取参考音频所在音色目录下的默认人设文件（优先 persona.toml，其次 persona.json，"
+                        "最后兼容旧版 persona.txt），渲染为系统提示词文本返回（测试版）。"
                         "文件不存在时返回 404，表示该音色暂无默认人设。",
-            response_description="人设纯文本", tags=["AI 对话"])
+            response_description="渲染后的人设系统提示词纯文本", tags=["AI 对话"])
 async def get_persona(ref_audio_path: str):
     if not check_path_traversal(ref_audio_path):
         return error_response(400, "非法的 ref_audio_path")
     persona = load_voice_persona(ref_audio_path)
     if not persona:
-        return error_response(404, "该音色目录下没有 persona.txt 默认人设文件")
+        return error_response(404, "该音色目录下没有 persona.toml / persona.json / persona.txt 默认人设文件")
     return Response(persona, media_type="text/plain; charset=utf-8")
 
 
@@ -101,7 +102,8 @@ async def get_persona(ref_audio_path: str):
                          "Base URL 与 API Key 随请求提供，服务端仅中转调用、不保存不记录；"
                          "回复文本经安全检测后提交语音合成任务，202 返回 task_id 与回复文本，"
                          "轮询 /task_status/{task_id} 获取音频。为安全起见，Base URL 仅允许公网地址（SSRF 防护）。"
-                         "system_prompt 留空时，自动读取所选音色目录下的 persona.txt 作为默认人设，无此文件则用内置默认人设。"
+                         "system_prompt 留空时，自动读取所选音色目录下的默认人设"
+                         "（persona.toml / persona.json / 旧版 persona.txt）作为系统提示词，无此文件则用内置默认人设。"
                          "text_lang 合成语种留空时，默认使用参考音频语种（prompt_lang）。"
                          "history 最多携带最近 20 轮对话；可选 memory_hints 传入浏览器端从全部"
                          "聊天记录中检索出的相关片段（最多 8 条 × 200 字），模型可据此回忆更早的历史内容。",

@@ -92,6 +92,21 @@ main{
   padding:18px;box-shadow:0 10px 32px rgba(18,63,77,.08);
 }
 .card h2{font-size:15px;margin-bottom:12px;color:#0e5a6b;display:flex;align-items:center;gap:6px}
+
+/* ---------- 可折叠分区（details/summary，展开状态记忆在本浏览器） ---------- */
+details.fold{border-bottom:1px dashed var(--line)}
+details.fold:last-child{border-bottom:none}
+details.fold summary{
+  list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  cursor:pointer;padding:10px 0 12px;font-size:15px;font-weight:700;
+  color:#0e5a6b;user-select:none;
+}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary:hover{color:var(--accent)}
+details.fold .chev{font-size:12px;color:var(--dim);flex:none;transition:transform .2s}
+details.fold[open] > summary .chev{transform:rotate(90deg)}
+details.fold .fold-body{padding-bottom:14px}
+details.fold .fold-body .log-controls{margin-top:0;padding-top:0;border-top:none}
 label,.field{display:block;font-size:13px;color:var(--dim);margin-bottom:10px}
 label span.t,.field .t{display:block;margin-bottom:4px}
 select,input[type=text],input[type=password],textarea{
@@ -102,6 +117,41 @@ select,input[type=text],input[type=password],textarea{
 }
 textarea{resize:vertical;line-height:1.7}
 select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.14)}
+/* ---------- 自定义下拉组件（原生 select 仅作数据源，自绘弹层接管交互） ---------- */
+.dselect-native{display:none!important}
+.dselect{
+  position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  width:100%;background:#f1f8fa;border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:9px 12px;font-size:14px;cursor:pointer;outline:none;user-select:none;
+  transition:border-color .15s, box-shadow .15s, background .15s;
+}
+.dselect:hover{border-color:rgba(14,116,144,.34)}
+.dselect:focus,.dselect.open{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.14)}
+.dselect.disabled{opacity:.55;cursor:not-allowed}
+.dselect-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dselect-arrow{
+  flex:none;width:0;height:0;
+  border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--dim);
+  transition:transform .2s, border-top-color .2s;
+}
+.dselect.open .dselect-arrow{transform:rotate(180deg);border-top-color:var(--accent)}
+.dselect-pop{
+  position:fixed;z-index:300;background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 14px 40px rgba(18,63,77,.18);padding:6px;overflow-y:auto;
+}
+.dselect-pop[hidden]{display:none}
+.dselect-group{font-size:12px;font-weight:700;color:#0e5a6b;padding:6px 10px 4px;letter-spacing:.3px}
+.dselect-opt{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 10px;border-radius:8px;font-size:13.5px;color:var(--text);cursor:pointer;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.dselect-opt:hover,.dselect-opt.hover{background:#eaf6f8}
+.dselect-opt.selected{color:var(--accent);font-weight:600}
+.dselect-opt.selected::after{content:"✓";font-weight:700;flex:none}
+.dselect-opt.disabled{color:var(--dim);cursor:not-allowed}
+.dselect-opt.disabled:hover{background:none}
+.row.in-label .dselect{flex:1;min-width:0}
 .hint{font-size:12px;color:var(--dim);margin:8px 0 0;line-height:1.7}
 
 /* 副参考音频多选框 */
@@ -252,76 +302,101 @@ select:focus,input:focus,textarea:focus{border-color:var(--accent);background:#f
 <main>
   <aside>
     <div class="card" id="settingsCard">
-      <h2>模型设置（使用你自己的 API）</h2>
-      <label><span class="t">常用服务商（可选，自动填充）</span>
-        <select id="preset">
-          <option value="">自定义…</option>
-          <option value="deepseek">DeepSeek（V4 Pro）</option>
-          <option value="qwen">阿里通义千问（Qwen3.8 Max）</option>
-          <option value="glm">智谱 GLM（GLM-5.2）</option>
-          <option value="kimi">Kimi（K3）</option>
-          <option value="openai">OpenAI（GPT-5.6 Sol）</option>
-          <option value="minimax">MiniMax（M3）</option>
-        </select>
-      </label>
-      <label><span class="t">Base URL（OpenAI 兼容）</span>
-        <input id="baseUrl" type="text" placeholder="https://api.deepseek.com" autocomplete="off" spellcheck="false">
-      </label>
-      <label><span class="t">API Key（仅存于你浏览器本地）</span>
-        <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
-      </label>
-      <div class="field">
-        <span class="t">模型名称</span>
-        <div class="row in-label">
-          <select id="modelSel"></select>
-          <button type="button" class="btn small primary" id="fetchModelsBtn">获取列表</button>
+      <details class="fold" id="foldApi" open>
+        <summary class="fold-head"><span>模型接口（使用你自己的 API）</span><span class="chev">▸</span></summary>
+        <div class="fold-body">
+          <label><span class="t">常用服务商（可选，自动填充）</span>
+            <select id="preset">
+              <option value="">自定义…</option>
+              <option value="deepseek">DeepSeek（V4 Pro）</option>
+              <option value="qwen">阿里通义千问（Qwen3.8 Max）</option>
+              <option value="glm">智谱 GLM（GLM-5.2）</option>
+              <option value="kimi">Kimi（K3）</option>
+              <option value="openai">OpenAI（GPT-5.6 Sol）</option>
+              <option value="minimax">MiniMax（M3）</option>
+            </select>
+          </label>
+          <label><span class="t">Base URL（OpenAI 兼容）</span>
+            <input id="baseUrl" type="text" placeholder="https://api.deepseek.com" autocomplete="off" spellcheck="false">
+          </label>
+          <label><span class="t">API Key（仅存于你浏览器本地）</span>
+            <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+          </label>
+          <div class="field">
+            <span class="t">模型名称</span>
+            <div class="row in-label">
+              <select id="modelSel"></select>
+              <button type="button" class="btn small primary" id="fetchModelsBtn">获取列表</button>
+            </div>
+            <input id="modelName" type="text" list="modelDatalist" placeholder="输入自定义模型名…" autocomplete="off" spellcheck="false" hidden>
+            <datalist id="modelDatalist"></datalist>
+            <p class="hint" id="modelHint"></p>
+          </div>
+          <div class="row">
+            <button class="btn small primary" id="saveBtn">保存设置</button>
+            <button class="btn small ghost" id="testBtn">测试连接</button>
+          </div>
         </div>
-        <input id="modelName" type="text" list="modelDatalist" placeholder="输入自定义模型名…" autocomplete="off" spellcheck="false" hidden>
-        <datalist id="modelDatalist"></datalist>
-        <p class="hint" id="modelHint"></p>
-      </div>
-      <label><span class="t">系统提示词（人设，可选）</span>
-        <textarea id="sysPrompt" rows="3" placeholder="留空使用默认人设"></textarea>
-      </label>
-      <div class="row">
-        <button class="btn small primary" id="saveBtn">保存设置</button>
-        <button class="btn small ghost" id="testBtn">测试连接</button>
-      </div>
-      <p class="hint" id="sysHint">设置仅保存在你浏览器本地，服务器不保存你的 Key。系统提示词留空时，自动使用当前音色目录下的 persona.txt 默认人设；只有你手动修改过的人设才会随设置保存，音色自带的默认人设不会保存、切换音色后自动跟随新音色。</p>
+      </details>
 
-      <div class="log-controls">
-        <label class="check">
-          <input type="checkbox" id="saveLog" checked>
-          <span>保存聊天记录到本浏览器（由你决定；记录只存在你自己的浏览器里，不会上传服务器）</span>
-        </label>
-        <div class="row">
-          <button type="button" class="btn small ghost" id="exportLogBtn">导出全部记录</button>
-          <button type="button" class="btn small ghost" id="importLogBtn">导入记录</button>
-          <button type="button" class="btn small ghost" id="clearLogBtn">清空已存记录</button>
+      <details class="fold" id="foldPersona">
+        <summary class="fold-head"><span>系统提示词（人设）</span><span class="chev">▸</span></summary>
+        <div class="fold-body">
+          <label><span class="t">系统提示词（人设，可选）</span>
+            <textarea id="sysPrompt" rows="3" placeholder="留空使用默认人设"></textarea>
+          </label>
+          <p class="hint" id="sysHint">设置仅保存在你浏览器本地，服务器不保存你的 Key。系统提示词留空时，自动使用当前音色目录下的默认人设（persona.toml / persona.json，旧版 persona.txt 仍兼容）；只有你手动修改过的人设才会随设置保存，音色自带的默认人设不会保存、切换音色后自动跟随新音色。</p>
         </div>
-        <input type="file" id="importFile" accept=".md,.txt,text/markdown" hidden>
-        <p class="hint" id="logStatus">正在读取已保存记录…</p>
-      </div>
+      </details>
+
+      <details class="fold" id="foldLog">
+        <summary class="fold-head"><span>聊天记录</span><span class="chev">▸</span></summary>
+        <div class="fold-body">
+          <div class="log-controls">
+            <label class="check">
+              <input type="checkbox" id="saveLog" checked>
+              <span>保存聊天记录到本浏览器（由你决定；记录只存在你自己的浏览器里，不会上传服务器）</span>
+            </label>
+            <div class="row">
+              <button type="button" class="btn small ghost" id="exportLogBtn">导出全部记录</button>
+              <button type="button" class="btn small ghost" id="importLogBtn">导入记录</button>
+              <button type="button" class="btn small ghost" id="clearLogBtn">清空已存记录</button>
+            </div>
+            <input type="file" id="importFile" accept=".md,.txt,text/markdown" hidden>
+            <p class="hint" id="logStatus">正在读取已保存记录…</p>
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="card">
-      <h2>语音音色</h2>
-      <label><span class="t">音色</span><select id="voiceSel"></select></label>
-      <label><span class="t">参考音频</span><select id="refSel"></select></label>
-      <label><span class="t">副参考音频（可多选，增强复刻效果）</span>
-        <div class="aux-box" id="auxRefBox"></div>
-        <p class="hint" id="auxRefHint"></p>
-      </label>
-      <label><span class="t">参考文本（可留空）</span><input id="promptText" type="text"></label>
-      <label><span class="t">合成语种</span>
-        <select id="textLangSel">
-          <option value="">跟随参考音频（默认）</option>
-        </select>
-      </label>
-      <p class="hint" id="textLangHint">默认跟随参考音频语种</p>
-      <button class="btn small primary" id="applyVoiceBtn">加载音色</button>
-      <p class="hint" id="loadedInfo">正在获取模型列表…</p>
-      <p class="hint">发送消息时会自动排队加载你选择的音色；点「加载音色」可立即切换。</p>
+      <details class="fold" id="foldVoice" open>
+        <summary class="fold-head"><span>音色与参考音频</span><span class="chev">▸</span></summary>
+        <div class="fold-body">
+          <label><span class="t">音色</span><select id="voiceSel"></select></label>
+          <label><span class="t">参考音频</span><select id="refSel"></select></label>
+          <button class="btn small primary" id="applyVoiceBtn">加载音色</button>
+          <p class="hint" id="loadedInfo">正在获取模型列表…</p>
+          <p class="hint">发送消息时会自动排队加载你选择的音色；点「加载音色」可立即切换。</p>
+        </div>
+      </details>
+
+      <details class="fold" id="foldRefAdv">
+        <summary class="fold-head"><span>参考音频高级选项</span><span class="chev">▸</span></summary>
+        <div class="fold-body">
+          <label><span class="t">副参考音频（可多选，增强复刻效果）</span>
+            <div class="aux-box" id="auxRefBox"></div>
+            <p class="hint" id="auxRefHint"></p>
+          </label>
+          <label><span class="t">参考文本（可留空）</span><input id="promptText" type="text"></label>
+          <label><span class="t">合成语种</span>
+            <select id="textLangSel">
+              <option value="">跟随参考音频（默认）</option>
+            </select>
+          </label>
+          <p class="hint" id="textLangHint">默认跟随参考音频语种</p>
+        </div>
+      </details>
     </div>
   </aside>
 
@@ -422,6 +497,14 @@ $("errClose").addEventListener("click", closeErrorModal);
 /* ==================== 本地存储安全封装（隐私模式/禁用存储时不报错） ==================== */
 function lsGet(key){ try { return localStorage.getItem(key); } catch (_) { return null; } }
 function lsSet(key, value){ try { localStorage.setItem(key, value); } catch (_) {} }
+
+/* ==================== 可折叠分区（展开状态记忆在本浏览器） ==================== */
+document.querySelectorAll("details.fold").forEach((d) => {
+  const key = "chat.fold." + d.id;
+  const saved = lsGet(key);
+  if (saved !== null) d.open = saved === "1";
+  d.addEventListener("toggle", () => { lsSet(key, d.open ? "1" : "0"); });
+});
 
 /* ==================== 聊天记录持久化（IndexedDB，仅本浏览器） ====================
  * 由「保存聊天记录」开关控制；开启时每条用户/AI 消息写入本地数据库，
@@ -590,7 +673,7 @@ function loadSettings(){
   $("sysPrompt").value = lsGet("chat.system_prompt") || "";
 }
 /* 仅当人设是用户自定义（≠ 当前自动加载的默认人设）时才作为配置保存，
-   避免把音色 A 的 persona.txt 存进浏览器、切换音色后盖住音色 B 的默认人设 */
+   避免把音色 A 的默认人设存进浏览器、切换音色后盖住音色 B 的默认人设 */
 function currentCustomPersona(){
   const v = $("sysPrompt").value.trim();
   return (v && v !== autoPersona) ? v : "";
@@ -953,7 +1036,7 @@ async function fillVoice(idx){
   updateTextLangHint();
   await loadVoicePersona(rs.value, v.speaker);
 }
-/* 音色目录下的 persona.txt 默认人设：仅当提示词框为空或仍是上次自动填充的内容时覆盖；
+/* 音色目录下的默认人设（persona.toml / persona.json / 旧版 persona.txt）：仅当提示词框为空或仍是上次自动填充的内容时覆盖；
    用户自定义的人设始终优先，不会被切换音色覆盖，也不随「保存设置」写入本地 */
 async function loadVoicePersona(refPath, speaker){
   if (!refPath) return;
@@ -964,7 +1047,7 @@ async function loadVoicePersona(refPath, speaker){
   try {
     const t = await api("/persona?" + qs({ ref_audio_path: refPath }));
     if (t) persona = t.trim();
-  } catch (_) { /* 无 persona.txt，忽略 */ }
+  } catch (_) { /* 无默认人设文件，忽略 */ }
   if (persona){
     $("sysPrompt").value = persona;
     autoPersona = persona;
@@ -972,7 +1055,7 @@ async function loadVoicePersona(refPath, speaker){
   } else {
     if (wasAuto) $("sysPrompt").value = ""; // 新音色无默认人设，清掉上一个音色的自动人设
     autoPersona = "";
-    $("sysHint").textContent = "该音色暂无 persona.txt 默认人设，留空将使用服务器默认人设。";
+    $("sysHint").textContent = "该音色暂无默认人设（persona.toml / persona.json），留空将使用服务器默认人设。";
   }
 }
 /* 副参考音频（多选）：与主参考一起用于音色复刻（引擎零样本文本拼接） */
@@ -1445,6 +1528,164 @@ loadModels();
 updateLogStatus();
 pollSwitchBanner();
 setInterval(pollSwitchBanner, 4000);
+
+/* ==================== 自定义下拉组件 ====================
+ * 原生 select 仅作数据源（隐藏），自绘弹层完全接管选择交互：
+ * - 弹层每次打开时按 select.options 重建，动态增删选项自动生效；
+ * - 选择后写回 select.value 并派发原生 change 事件，现有 JS 逻辑零改动；
+ * - 定时器同步外部对 select.value / options / disabled 的改动到界面；
+ * - 弹层以 fixed 定位挂到 body，避免被卡片 backdrop-filter 的层叠上下文遮挡。 */
+(function(){
+  document.querySelectorAll("select").forEach(function(sel){
+    if (sel.dataset.dsInit) return;
+    sel.dataset.dsInit = "1";
+    const w = document.createElement("div");
+    w.className = "dselect";
+    w.tabIndex = 0;
+    w.setAttribute("role", "combobox");
+    w.setAttribute("aria-expanded", "false");
+    const label = document.createElement("span");
+    label.className = "dselect-label";
+    const arrow = document.createElement("span");
+    arrow.className = "dselect-arrow";
+    const pop = document.createElement("div");
+    pop.className = "dselect-pop";
+    pop.setAttribute("role", "listbox");
+    pop.hidden = true;
+    w.append(label, arrow, pop);
+    sel.classList.add("dselect-native");
+    sel.insertAdjacentElement("afterend", w);
+    let open = false, cur = -1;
+
+    function selText(){
+      const so = sel.selectedOptions;
+      if (so && so.length) return String(so[0].textContent || "");
+      const o = Array.from(sel.options).find(function(o){ return !o.disabled; });
+      return o ? String(o.textContent || "") : "";
+    }
+    function setLabel(){ label.textContent = selText(); }
+    function enabledItems(){
+      return Array.from(pop.children).filter(function(el){
+        return el.classList.contains("dselect-opt") && !el.classList.contains("disabled");
+      });
+    }
+    function rebuild(){
+      pop.innerHTML = "";
+      let lastGroup = null;
+      Array.from(sel.options).forEach(function(o, i){
+        const parent = o.parentElement;
+        const g = (parent && parent.tagName === "OPTGROUP") ? String(parent.label || "") : "";
+        if (g !== lastGroup){
+          if (g){
+            const gh = document.createElement("div");
+            gh.className = "dselect-group";
+            gh.textContent = g;
+            pop.appendChild(gh);
+          }
+          lastGroup = g;
+        }
+        const d = document.createElement("div");
+        d.className = "dselect-opt" + (o.disabled ? " disabled" : "");
+        d.textContent = o.textContent;
+        d.dataset.idx = String(i);
+        if (o.selected) d.classList.add("selected");
+        d.addEventListener("mousedown", function(e){ e.preventDefault(); });
+        d.addEventListener("click", function(){ if (!o.disabled) pick(i); });
+        pop.appendChild(d);
+      });
+    }
+    function pick(i){
+      const o = sel.options[i];
+      if (!o || o.disabled) return;
+      if (sel.value !== o.value){
+        sel.value = o.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      setLabel();
+      closePopup();
+      w.focus();
+    }
+    function setHover(i){
+      const items = enabledItems();
+      items.forEach(function(el){ el.classList.remove("hover"); });
+      const el = items[i];
+      if (el){
+        el.classList.add("hover");
+        el.scrollIntoView({ block: "nearest" });
+      }
+      cur = i;
+    }
+    function posPopup(){
+      const r = w.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom, above = r.top;
+      const up = below < 240 && above > below;
+      const space = Math.max(60, (up ? above : below) - 10);
+      pop.classList.toggle("up", up);
+      pop.style.left = r.left + "px";
+      pop.style.width = r.width + "px";
+      pop.style.top = up ? "auto" : (r.bottom + 6) + "px";
+      pop.style.bottom = up ? (window.innerHeight - r.top + 6) + "px" : "auto";
+      pop.style.maxHeight = Math.min(250, space) + "px";
+    }
+    function openPopup(){
+      rebuild();
+      setLabel();
+      if (pop.parentNode !== document.body) document.body.appendChild(pop);
+      pop.hidden = false;
+      open = true;
+      w.classList.add("open");
+      w.setAttribute("aria-expanded", "true");
+      posPopup();
+      const items = enabledItems();
+      const selIdx = items.findIndex(function(el){ return el.classList.contains("selected"); });
+      setHover(selIdx >= 0 ? selIdx : 0);
+    }
+    function closePopup(){
+      if (!open) return;
+      pop.hidden = true;
+      open = false;
+      w.classList.remove("open");
+      w.setAttribute("aria-expanded", "false");
+    }
+    w.addEventListener("click", function(){
+      if (w.classList.contains("disabled")) return;
+      if (open) closePopup(); else openPopup();
+    });
+    w.addEventListener("keydown", function(e){
+      if (w.classList.contains("disabled")) return;
+      if (!open){
+        if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp"){
+          e.preventDefault();
+          openPopup();
+        }
+        return;
+      }
+      const items = enabledItems();
+      if (e.key === "ArrowDown"){ e.preventDefault(); setHover(Math.min(cur + 1, items.length - 1)); }
+      else if (e.key === "ArrowUp"){ e.preventDefault(); setHover(Math.max(cur - 1, 0)); }
+      else if (e.key === "Enter" || e.key === " "){
+        e.preventDefault();
+        if (items[cur]) pick(parseInt(items[cur].dataset.idx, 10));
+      }
+      else if (e.key === "Escape" || e.key === "Tab"){ closePopup(); }
+    });
+    document.addEventListener("mousedown", function(e){
+      if (open && !w.contains(e.target) && !pop.contains(e.target)) closePopup();
+    });
+    window.addEventListener("scroll", function(){ if (open) posPopup(); }, true);
+    window.addEventListener("resize", function(){ if (open) posPopup(); });
+    /* 外部 JS 直接改 select.value / options / disabled 时同步界面 */
+    setInterval(function(){
+      if (w.classList.contains("disabled") !== sel.disabled){
+        w.classList.toggle("disabled", sel.disabled);
+        if (sel.disabled) closePopup();
+      }
+      if (label.textContent !== selText()) setLabel();
+    }, 400);
+    setLabel();
+    if (sel.disabled) w.classList.add("disabled");
+  });
+})();
 </script>
 </body>
 </html>
